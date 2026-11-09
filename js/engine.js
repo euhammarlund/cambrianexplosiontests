@@ -1,10 +1,40 @@
-// Cambrian Ledger evaluation engine. Pure functions, no DOM access.
+// EvoEarth evaluation engine. Pure functions, no DOM access.
 (function () {
   const TIER_W = { A: 1, B: 0.75, C: 0.5, D: 0.3 };
-  const STEP = 0.5; // Myr sampling step
+  const STEP = 0.5; // Myr sampling step for continuous curves
+  const BIN_ORIGIN = 640; // bins are counted from this age (Ma, display scale)
+  const RESOLUTIONS = [1, 2, 2.5, 5, 10, 20]; // bin widths offered (Myr)
 
   const panelsById = {};
   window.CL_PANELS.forEach(p => { panelsById[p.id] = p; });
+
+  // ---------- restage version 0.1 ages onto the current ICS chart ----------
+  // Each age keeps its relative position within its stage.
+  (function restageAll() {
+    const rs = window.CL_TIME.restage; if (!rs) return;
+    const A = rs.from, B = rs.to;
+    const f = age => {
+      if (typeof age !== "number") return age;
+      for (let i = 0; i < A.length - 1; i++) {
+        if (age <= A[i] && age >= A[i + 1]) {
+          const r = A[i] === A[i + 1] ? 0 : (A[i] - age) / (A[i] - A[i + 1]);
+          return Math.round((B[i] - r * (B[i] - B[i + 1])) * 100) / 100;
+        }
+      }
+      return age;
+    };
+    window.CL_RESTAGE = f;
+    const tiers = list => (list || []).forEach(t => { t.from = f(t.from); t.to = f(t.to); });
+    window.CL_PANELS.forEach(p => {
+      tiers(p.tiers);
+      (p.variants || []).forEach(v => { (v.points || []).forEach(q => { q[0] = f(q[0]); }); tiers(v.tiers); });
+      (p.rows || []).forEach(r => r.steps.forEach(st => { st[0] = f(st[0]); }));
+      (p.sites || []).forEach(st => { st.from = f(st.from); st.to = f(st.to); });
+      (p.markers || []).forEach(m => { m.age = f(m.age); });
+    });
+    window.CL_TIME.events.forEach(e => { e.from = f(e.from); e.to = f(e.to); });
+    window.CL_TIME.lagerstatten.forEach(l => { l.age = f(l.age); });
+  })();
 
   // ---------- age model ----------
   function remap(age, anchors, inverse) {
@@ -109,26 +139,76 @@
     return r;
   }
 
+  // ---------- time resolution (binning) ----------
+  // With state.res = r (Myr), every series is replaced by the mean of each bin of width r,
+  // counted from BIN_ORIGIN. Tests then see one value per bin.
+  function binIndex(t, r) { return Math.floor((BIN_ORIGIN - t) / r + 1e-9); }
+  function binBounds(k, r) { return [BIN_ORIGIN - k * r, BIN_ORIGIN - (k + 1) * r]; }
+  function binKey(panel, k, state, opts) {
+    const v = panel.kind === "curve" ? variantOf(panel, state, opts && opts.variant).id : panel.kind === "derived" ? "dfi:" + state.variants.temp : (opts && opts.row) || "";
+    return `${panel.id}|${v}|${state.ageModel}|${state.res}|${k}`;
+  }
+  // Mean of normalised (and raw) values in bin k. Returns null if less than half the bin has data.
+  function binMean(panel, k, state, opts) {
+    const r = state.res, cache = state.binCache;
+    const key = cache ? binKey(panel, k, state, opts) : null;
+    if (cache && cache.has(key)) return cache.get(key);
+    const [a, b] = binBounds(k, r);
+    const n = Math.max(2, Math.round(r / 0.25));
+    let sn = 0, sv = 0, slo = 0, shi = 0, c = 0;
+    for (let i = 0; i < n; i++) {
+      const t = a - (i + 0.5) * (a - b) / n;
+      const v = valueAt(panel, toICS(t, state.ageModel), state, opts);
+      if (v) { sn += v.n; sv += v.v; slo += v.lo; shi += v.hi; c++; }
+    }
+    const out = c >= n / 2 ? { n: sn / c, v: sv / c, lo: slo / c, hi: shi / c, from: a, to: b } : null;
+    if (cache) cache.set(key, out);
+    return out;
+  }
+  function binnedValueAt(panel, t, state, opts) {
+    if (!state.res) return null;
+    return binMean(panel, binIndex(t, state.res), state, opts);
+  }
+
   // Normalised series over [from (older), to (younger)] in display ages.
+  // The returned array carries its time step (Myr) in arr.step.
   function series(panel, tFrom, tTo, state, opts) {
     const out = [];
+    if (state.res) {
+      const k0 = binIndex(tFrom, state.res), k1 = binIndex(tTo, state.res);
+      for (let k = k0; k <= k1; k++) { const m = binMean(panel, k, state, opts); out.push(m ? m.n : null); }
+      out.step = state.res;
+      return out;
+    }
     for (let t = tFrom; t >= tTo - 1e-9; t -= STEP) {
       const v = valueAt(panel, toICS(t, state.ageModel), state, opts);
       out.push(v ? v.n : null);
     }
+    out.step = STEP;
     return out;
   }
 
   function slope(arr) {
-    // per 10 Myr, arr ordered old -> young, step STEP
-    const pts = arr.map((v, i) => [i * STEP, v]).filter(p => p[1] !== null);
+    // per 10 Myr, arr ordered old -> young
+    const st = arr.step || STEP;
+    const pts = arr.map((v, i) => [i * st, v]).filter(p => p[1] !== null);
     if (pts.length < 3) return null;
     const n = pts.length, mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
     let num = 0, den = 0;
     pts.forEach(([x, y]) => { num += (x - mx) * (y - my); den += (x - mx) * (x - mx); });
     return den === 0 ? 0 : (num / den) * 10;
   }
-  function coverageOK(arr) { return arr.filter(v => v !== null).length >= Math.max(3, arr.length * 0.6); }
+  function coverageOK(arr, minBins) {
+    const nn = arr.filter(v => v !== null).length;
+    if (arr.step > STEP) return nn >= (minBins || 3) && nn >= arr.length * 0.6;
+    return nn >= Math.max(3, arr.length * 0.6);
+  }
+  // Minimum half-window so that a test has enough bins: trend 1.5 bins, lead 2, volatility 2, co-variation 2.5.
+  function minHalf(state, test) {
+    if (!state.res) return 0;
+    const f = { trend: 1.5, lead: 2, volatility: 2, covary: 2.5, state: 0 }[test] || 0;
+    return f * state.res;
+  }
   function diffs(arr) { const d = []; for (let i = 1; i < arr.length; i++) d.push(arr[i] === null || arr[i - 1] === null ? null : arr[i] - arr[i - 1]); return d; }
   function pearson(a, b) {
     const pairs = a.map((x, i) => [x, b[i]]).filter(p => p[0] !== null && p[1] !== null);
@@ -176,22 +256,23 @@
     }
     const P = id => panelsById[id];
     let s = null, detail = "";
-    const win = (w) => Math.max(W, w || 0);
+    const win = (w) => Math.max(W, w || 0, minHalf(state, pred.test));
+    const resTxt = state.res ? `, ${state.res} Myr bins` : "";
     try {
       if (pred.test === "state") {
         const p = P(pred.panel), w = W;
         const arr = series(p, t + w, t - w, state, { variant: pred.variant, row: pred.row });
-        if (!coverageOK(arr)) { res.reason = `No ${p.short} data at this time`; return res; }
+        if (!coverageOK(arr, 1)) { res.reason = `No ${p.short} data at this time`; return res; }
         const m = arr.filter(v => v !== null).reduce((a, b) => a + b, 0) / arr.filter(v => v !== null).length;
         s = tanh(pred.dir * (m - pred.thr) / (pred.scale || 0.15));
-        detail = `normalised ${m.toFixed(2)} vs threshold ${pred.thr}`;
+        detail = `normalised ${m.toFixed(2)} vs threshold ${pred.thr}${resTxt}`;
       } else if (pred.test === "trend") {
         const p = P(pred.panel), w = win(pred.window);
         const arr = series(p, t + w, t - w, state, { variant: pred.variant });
         if (!coverageOK(arr)) { res.reason = `No ${p.short} data around this time`; return res; }
         const sl = slope(arr);
         s = tanh(pred.dir * sl / (pred.scale || 0.12));
-        detail = `slope ${sl >= 0 ? "+" : ""}${sl.toFixed(2)} per 10 Myr (normalised)`;
+        detail = `slope ${sl >= 0 ? "+" : ""}${sl.toFixed(2)} per 10 Myr (normalised, ±${w} Myr${resTxt})`;
       } else if (pred.test === "lead") {
         const L = win(pred.window);
         const a = series(P(pred.a), t + L, t, state, { row: pred.arow });
@@ -199,7 +280,7 @@
         if (!coverageOK(a) || !coverageOK(b)) { res.reason = `Missing data before or after this time`; return res; }
         const sa = tanh(pred.adir * slope(a) / 0.12), sb = tanh(pred.bdir * slope(b) / 0.12);
         s = Math.min(sa, sb);
-        detail = `driver before: ${sa.toFixed(2)}, outcome after: ${sb.toFixed(2)}`;
+        detail = `driver before: ${sa.toFixed(2)}, outcome after: ${sb.toFixed(2)} (${L} Myr each side${resTxt})`;
       } else if (pred.test === "covary") {
         const L = win(pred.window);
         const a = series(P(pred.a), t + L, t - L, state, {});
@@ -208,14 +289,14 @@
         const r = state.covaryMode === "levels" ? pearson(a, b) : pearson(diffs(a), diffs(b));
         if (r === null) { res.reason = `One series is flat in the window`; return res; }
         s = pred.dir * r;
-        detail = `r = ${r.toFixed(2)} (${state.covaryMode === "levels" ? "levels" : "first differences"}, ±${L} Myr)`;
+        detail = `r = ${r.toFixed(2)} (${state.covaryMode === "levels" ? "levels" : "first differences"}, ±${L} Myr${resTxt})`;
       } else if (pred.test === "volatility") {
         const p = P(pred.panel), w = win(pred.window);
         const arr = series(p, t + w, t - w, state, {});
         if (!coverageOK(arr)) { res.reason = `No ${p.short} data around this time`; return res; }
         const sd = residualSD(arr);
         s = tanh((sd - pred.thr) / (pred.scale || 0.03));
-        detail = `residual variability ${sd.toFixed(3)} vs ${pred.thr}`;
+        detail = `residual variability ${sd.toFixed(3)} vs ${pred.thr}${resTxt}`;
       } else if (pred.test === "trait") {
         const p = P(pred.panel);
         const l = traitLevel(p.rows.find(r => r.id === pred.row), toICS(t, state.ageModel));
@@ -311,5 +392,42 @@
     return out;
   }
 
-  window.CL_ENGINE = { TIER_W, STEP, panelsById, toDisplay, toICS, defaultWindow, valueAt, variantOf, interp, normalise, traitLevel, tierAt, evalPred, evalHyp, evaluate, heatmap, sensitivity, dfiAt };
+  // Which predictions use a panel, and in which role.
+  function roleUsage(pid) {
+    const out = { given: [], outcome: [] };
+    window.CL_HYPS.forEach(h => h.preds.forEach(q => {
+      if (q.kind === "condition" && q.panel === pid) out.given.push({ h, q });
+      else if (q.kind === "pattern" && q.panel === pid) out.outcome.push({ h, q });
+      else if (q.kind === "link") { if (q.a === pid) out.given.push({ h, q }); if (q.b === pid) out.outcome.push({ h, q }); }
+    }));
+    return out;
+  }
+
+  // Median spacing (Myr) of the control points of the selected curve.
+  function dataSpacing(panel, state) {
+    if (panel.kind !== "curve") return null;
+    const pts = variantOf(panel, state).points; if (!pts || pts.length < 2) return null;
+    const d = []; for (let i = 1; i < pts.length; i++) d.push(Math.abs(pts[i - 1][0] - pts[i][0]));
+    d.sort((a, b) => a - b); return d[Math.floor(d.length / 2)];
+  }
+
+  // Correlation between a driver and a response over a display range at bin width r.
+  function rangeCorr(aId, bId, range, r, state) {
+    const s2 = Object.assign({}, state, { res: r });
+    const a = series(panelsById[aId], range[0], range[1], s2, {}), b = series(panelsById[bId], range[0], range[1], s2, {});
+    const nb = a.filter((v, i) => v !== null && b[i] !== null).length;
+    const rr = state.covaryMode === "levels" ? pearson(a, b) : pearson(diffs(a), diffs(b));
+    return { r: rr, n: nb };
+  }
+
+  // Net support of every hypothesis at time t for each bin width (null = continuous).
+  function supportByRes(t, state, widths) {
+    return widths.map(r => {
+      const s2 = Object.assign({}, state, { res: r });
+      const out = {}; window.CL_HYPS.forEach(h => { out[h.id] = evalHyp(h, t, s2).net; });
+      return { r, net: out };
+    });
+  }
+
+  window.CL_ENGINE = { TIER_W, STEP, RESOLUTIONS, BIN_ORIGIN, binIndex, binBounds, binMean, binnedValueAt, roleUsage, dataSpacing, rangeCorr, supportByRes, minHalf, panelsById, toDisplay, toICS, defaultWindow, valueAt, variantOf, interp, normalise, traitLevel, tierAt, evalPred, evalHyp, evaluate, heatmap, sensitivity, dfiAt };
 })();

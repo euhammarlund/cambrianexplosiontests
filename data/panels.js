@@ -1,7 +1,12 @@
 // Parameter panels, ordered from more to less constrained (default tiers).
 // All curves are SIMPLIFIED, SCHEMATIC digitisations meant for teaching and for
 // testing the logic of the app. Each control point is [ageMa, value, low, high]
-// on the ICS 2023 age scale. They must be checked against the cited data, step by step.
+// on the version 0.1 age scale. The engine restages them to the ICS 2026/06 chart at load time
+// (see timescale.js). They must be checked against the cited data, step by step.
+//
+// tempo: how fast the process itself operates. slow = first order, tens of Myr;
+// intermediate = about 1 to 10 Myr; fast = can change within 1 Myr or less;
+// response = a biological record that can respond at any rate.
 //
 // tiers: list of {from, to, tier} in Ma (older -> younger). Tier weights A=1, B=0.75, C=0.5, D=0.3.
 // norm: [low, high] maps a value to a 0-1 scale used by the hypothesis tests.
@@ -14,12 +19,12 @@ window.CL_PANELS = [
     tiers: [{ from: 640, to: 551, tier: "B" }, { from: 551, to: 529, tier: "B" }, { from: 529, to: 440, tier: "A" }],
     tierReason: "Radiometric ages are tight in the Ordovician and later Cambrian. Ediacaran and Fortunian ages depend on δ13C correlation and the chosen age model.",
     description: "Periods, stages, major events and Lagerstätten. Age model choice shifts data between 551 and 529 Ma.",
-    refs: ["gts2020", "bowyer2022", "myrow2024", "evans2022", "zhuravlevwood2018", "rasmussenlecture"],
-    variants: [{ id: "ics", name: "ICS 2023 chart", unit: "", points: [] }]
+    refs: ["ics2026", "gts2020", "bowyer2022", "myrow2024", "evans2022", "zhuravlevwood2018", "rasmussenlecture"],
+    variants: [{ id: "ics", name: "ICS 2026/06 chart", unit: "", points: [] }]
   },
   {
     id: "d13c", name: "Carbonate carbon isotopes (δ13C)", short: "δ13C", group: "Chemical",
-    kind: "curve", dataType: "Proxy", scale: "Global composite", defaultRole: "given",
+    kind: "curve", dataType: "Proxy", scale: "Global composite", tempo: { cls: "fast", note: "Excursions last about 0.1 to 3 Myr; the background trend changes over tens of Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 551, tier: "B" }, { from: 551, to: 529, tier: "B" }, { from: 529, to: 440, tier: "A" }],
     tierReason: "Many sections and a long research history. The Ediacaran composite is partly built by correlation, so it is not fully independent of the age model.",
     description: "The backbone used to correlate sections. Large negative excursions (Shuram, BACE) and positive excursions (SPICE, Hirnantian) mark carbon-cycle perturbations.",
@@ -32,7 +37,7 @@ window.CL_PANELS = [
   },
   {
     id: "richness", name: "Marine animal diversity", short: "Diversity", group: "Biological",
-    kind: "curve", dataType: "Observation", scale: "Global", defaultRole: "outcome",
+    kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Diversity can change within a few hundred kyr (extinctions) or over tens of Myr (accumulation)." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 487, tier: "B" }, { from: 487, to: 440, tier: "A" }],
     tierReason: "Ordovician genus richness is estimated with sampling-standardised capture-recapture methods. Cambrian and Ediacaran counts are raw or partly standardised compilations.",
     description: "Genus richness, origination intensity, and genus life expectancy. Rasmussen et al. 2019 describe a cascading trend of radiations that is paused by the Late Ordovician extinctions.",
@@ -49,7 +54,7 @@ window.CL_PANELS = [
   },
   {
     id: "skeletal", name: "Skeletal fossils and biomineralisation", short: "Skeletons", group: "Biological",
-    kind: "curve", dataType: "Observation", scale: "Regional to global", defaultRole: "outcome",
+    kind: "curve", dataType: "Observation", scale: "Regional to global", tempo: { cls: "response", note: "Skeletal radiations and the Sinsk decline unfold over about 1 to 5 Myr." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 551, tier: "C" }, { from: 551, to: 510, tier: "B" }, { from: 510, to: 440, tier: "B" }],
     tierReason: "Skeletal fossils preserve well and are well dated on the Siberian Platform. The record is strongly regional before Stage 3.",
     description: "Zhuravlev and Wood (2018) describe two phases: a late Ediacaran to early Fortunian phase of first skeletons, and a Stage 2 to Stage 3 phase of rapid skeletal diversification that ends with the Sinsk event.",
@@ -63,7 +68,7 @@ window.CL_PANELS = [
   },
   {
     id: "ichno", name: "Trace fossils and bioturbation", short: "Ichnology", group: "Biological",
-    kind: "curve", dataType: "Observation", scale: "Global", defaultRole: "outcome",
+    kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Burrowing depth and diversity increase stepwise over several Myr." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 560, tier: "C" }, { from: 560, to: 487, tier: "B" }, { from: 487, to: 440, tier: "B" }],
     tierReason: "Trace fossils are abundant and in situ. Global ichnodiversity counts are compiled from many sections, and Ediacaran attributions are debated.",
     description: "Ichnogenera rise by about 433% from the late Ediacaran (about 10 ichnogenera) into the Fortunian, followed by about 40% further increase (Mángano and Buatois 2014). Bioturbation depth and intensity rise later, in Stage 2 to Stage 3 (the agronomic revolution).",
@@ -77,7 +82,7 @@ window.CL_PANELS = [
   },
   {
     id: "ediacara", name: "Ediacara-type biota", short: "Ediacara biota", group: "Biological",
-    kind: "curve", dataType: "Observation", scale: "Global", defaultRole: "outcome",
+    kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Assemblage turnovers take about 1 to 10 Myr." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 576, tier: "C" }, { from: 576, to: 538, tier: "B" }, { from: 538, to: 440, tier: "C" }],
     tierReason: "The genus database is well curated (Evans et al. 2022). Ages of assemblages and the last occurrences are uncertain by a few Myr.",
     description: "Avalon, White Sea and Nama assemblages. Genus richness falls from about 70 genera in the White Sea assemblage to 14 in the Nama assemblage, a loss of about 80% (Evans et al. 2022).",
@@ -89,7 +94,7 @@ window.CL_PANELS = [
   },
   {
     id: "traits_pred", name: "Predation, defence and sensing", short: "Predation and eyes", group: "Biological",
-    kind: "traits", dataType: "Observation", scale: "Global", defaultRole: "outcome",
+    kind: "traits", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "First appearances are point events; establishment takes several Myr." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 529, tier: "C" }, { from: 529, to: 440, tier: "B" }],
     tierReason: "First appearances are minimum ages. Early evidence (borings, spines) is sparse and sometimes debated.",
     description: "Presence of traits through time: 0 = absent, 0.5 = first or rare evidence, 1 = established. Read across rows, not as a curve.",
@@ -105,7 +110,7 @@ window.CL_PANELS = [
   },
   {
     id: "traits_eco", name: "Feeding modes, tiering and reefs", short: "Ecospace", group: "Biological",
-    kind: "traits", dataType: "Observation", scale: "Global", defaultRole: "outcome",
+    kind: "traits", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Ecospace filling proceeds over tens of Myr." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 529, tier: "C" }, { from: 529, to: 440, tier: "B" }],
     tierReason: "Ecological modes are inferred from morphology and traces. Ordovician ecospace is better documented than the Ediacaran.",
     description: "Lecture point: suspension feeders dominate Ordovician benthos, whereas detritus feeders dominate the Cambrian. 0 = absent, 0.5 = first or rare, 1 = established.",
@@ -121,7 +126,7 @@ window.CL_PANELS = [
   },
   {
     id: "sampling", name: "Preservation and sampling", short: "Sampling", group: "Confounder",
-    kind: "curve", dataType: "Observation", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "intermediate", note: "Rock volume changes with sequence-scale sea-level cycles, about 1 to 10 Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 440, tier: "B" }],
     tierReason: "Rock area and volume indices are quantitative but uneven between continents. Ediacaran sections are fewer.",
     description: "Marine rock volume (schematic after Bowyer et al. 2024 for 580 to 510 Ma, and Macrostrat-style compilations later). Lagerstätten are shown as ticks. A rise in fossils that follows a rise in rock record may be partly a sampling effect.",
@@ -133,7 +138,7 @@ window.CL_PANELS = [
   },
   {
     id: "sealevel", name: "Sea level and flooded shelf area", short: "Sea level", group: "Physical",
-    kind: "curve", dataType: "Observation", scale: "Global (eustatic estimate)", defaultRole: "given",
+    kind: "curve", dataType: "Observation", scale: "Global (eustatic estimate)", tempo: { cls: "intermediate", note: "Second-order cycles last about 1 to 10 Myr; the first-order rise lasts tens of Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 440, tier: "B" }],
     tierReason: "Paleozoic eustasy is reconstructed from sequence stratigraphy (Haq and Schutter 2008). Ediacaran transgressions are identified regionally (Bowyer et al. 2024) without reliable amplitudes.",
     description: "Relative eustatic sea level. Bowyer et al. (2024) identify transgressions at about 574, 550.5, 534 to 533, 528 and 514 Ma. The lecture notes a Cambrian rise of more than 200 m, an Ordovician maximum, and a Hirnantian drop.",
@@ -145,7 +150,7 @@ window.CL_PANELS = [
   },
   {
     id: "geography", name: "Paleogeography and continental fragmentation", short: "Fragmentation", group: "Physical",
-    kind: "curve", dataType: "Model", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Model", scale: "Global", tempo: { cls: "slow", note: "Plate configuration is a first-order control that changes over tens of Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 440, tier: "B" }],
     tierReason: "Plate reconstructions are well constrained for the Ordovician (paleomagnetism and faunal provinces). Ediacaran reconstructions differ strongly between models.",
     description: "A fragmentation index (more separate continents and shelf provinces = higher). Valentine and Moores (1970) and Zaffos et al. (2017) link fragmentation to provinciality and diversity.",
@@ -157,7 +162,7 @@ window.CL_PANELS = [
   },
   {
     id: "temp", name: "Temperature and climate state", short: "Temperature", group: "Physical",
-    kind: "curve", dataType: "Proxy and model", scale: "Global or tropical (see variant)", defaultRole: "given",
+    kind: "curve", dataType: "Proxy and model", scale: "Global or tropical (see variant)", tempo: { cls: "fast", note: "Glaciations and warming steps can happen within 0.1 to 1 Myr; long-term cooling takes tens of Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 487, tier: "C" }, { from: 487, to: 440, tier: "B" }],
     tierReason: "Ordovician conodont and clumped isotope data give good relative trends. Cambrian absolute temperatures differ by more than 20 °C between geological and isotopic estimates. The Ediacaran has almost no quantitative temperature proxies.",
     description: "Choose between curves. They are not on the same scale (global average vs. tropical sea surface), so tests use each curve's own normalised range. Trends are more robust than absolute values.",
@@ -179,7 +184,7 @@ window.CL_PANELS = [
   },
   {
     id: "nutrients", name: "Nutrients, weathering and productivity", short: "Nutrients", group: "Chemical",
-    kind: "curve", dataType: "Proxy", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Proxy", scale: "Global", tempo: { cls: "intermediate", note: "TOC and phosphorite pulses span about 1 to 5 Myr; seawater 87Sr/86Sr integrates over Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 440, tier: "B" }],
     tierReason: "Sr isotopes are a robust global record of weathering. TOC and phosphorite compilations are productivity proxies with preservation and facies biases.",
     description: "Stockey et al. (2024) find that shale TOC rises across the Ediacaran–Cambrian transition, by about 70% (deconvolved) or about 130% (bootstrap), consistent with higher productivity. Phosphorite deposition peaks around 528 to 527 Ma.",
@@ -196,7 +201,7 @@ window.CL_PANELS = [
   },
   {
     id: "chem", name: "Seawater chemistry (Mg/Ca, Ca)", short: "Seawater Mg/Ca", group: "Chemical",
-    kind: "curve", dataType: "Proxy", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Proxy", scale: "Global", tempo: { cls: "slow", note: "Seawater Mg/Ca and Ca change over tens of Myr (residence times and tectonic forcing)." }, defaultRole: "given",
     tiers: [{ from: 640, to: 545, tier: "D" }, { from: 545, to: 440, tier: "C" }],
     tierReason: "Fluid inclusions in halite give few, widely spaced data points. Aragonite versus calcite sea states are inferred partly from skeletal and ooid mineralogy.",
     description: "Aragonite seas (high Mg/Ca) in the late Ediacaran shift to calcite seas (lower Mg/Ca) during the early Cambrian. Brennan et al. (2004) report a rise in seawater Ca that coincides with the advent of biocalcification.",
@@ -210,7 +215,7 @@ window.CL_PANELS = [
   },
   {
     id: "localredox", name: "Benthic oxygenation at animal sites", short: "Local redox", group: "Chemical",
-    kind: "curve", dataType: "Proxy (site-based)", scale: "Local to regional", defaultRole: "given",
+    kind: "curve", dataType: "Proxy (site-based)", scale: "Local to regional", tempo: { cls: "fast", note: "Local redox can change within kyr; site records sample short windows." }, defaultRole: "given",
     tiers: [{ from: 640, to: 560, tier: "C" }, { from: 560, to: 487, tier: "B" }, { from: 487, to: 440, tier: "C" }],
     tierReason: "Iron speciation and trace metals measured in the same beds as the fossils. Each record describes one basin, so a global summary is uncertain.",
     description: "Summary index of oxygen availability where animals actually lived (0 anoxic, 1 well oxygenated). Site records: dynamic, intermittently oxic Nama shelf; transient local oxygenation across the BACE in SW Laurentia; mainly dysoxic waters on the Siberian Platform 527 to 519 Ma; oxic benthos next to an oxygen-minimum-zone-like water column at Chengjiang; very low oxygen at Sirius Passet; sulfidic shelves during the Hirnantian.",
@@ -230,7 +235,7 @@ window.CL_PANELS = [
   },
   {
     id: "globalredox", name: "Global seafloor anoxia", short: "Global anoxia", group: "Chemical",
-    kind: "curve", dataType: "Proxy and model", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Proxy and model", scale: "Global", tempo: { cls: "fast", note: "Anoxic pulses last about 0.1 to 2 Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 487, tier: "C" }, { from: 487, to: 440, tier: "C" }],
     tierReason: "Global estimates come from mass-balance models on δ238U or statistics on trace-metal compilations. Different methods disagree on the timing and size of oxygenation.",
     description: "Index of the extent of anoxic seafloor (0 small, 1 large). Variants: a δ238U-based view with terminal Ediacaran anoxia and early Cambrian oxygenation pulses; the Stockey et al. (2024) view of no wholesale deep-ocean oxygenation; and the classic Neoproterozoic Oxygenation Event step.",
@@ -247,7 +252,7 @@ window.CL_PANELS = [
   },
   {
     id: "co2", name: "Atmospheric CO2 and volcanic degassing", short: "CO2", group: "Chemical",
-    kind: "curve", dataType: "Model", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Model", scale: "Global", tempo: { cls: "slow", note: "Model outputs have time steps of several Myr and smooth fast change." }, defaultRole: "given",
     tiers: [{ from: 640, to: 440, tier: "D" }],
     tierReason: "No direct CO2 proxies before the Devonian. Values come from long-term carbon cycle models, and the arc zircon index is an indirect degassing proxy.",
     description: "Model CO2 curves and the McKenzie et al. (2016) continental arc index (more arc volcanism = more CO2 degassing = greenhouse).",
@@ -263,7 +268,7 @@ window.CL_PANELS = [
   },
   {
     id: "o2", name: "Atmospheric oxygen", short: "Atmospheric O2", group: "Chemical",
-    kind: "curve", dataType: "Model", scale: "Global", defaultRole: "given",
+    kind: "curve", dataType: "Model", scale: "Global", tempo: { cls: "slow", note: "Model outputs have time steps of several Myr and smooth fast change." }, defaultRole: "given",
     tiers: [{ from: 640, to: 440, tier: "D" }],
     tierReason: "No direct proxy for atmospheric O2 in this interval. Estimates come from biogeochemical models or statistical inference, and published ranges span close to an order of magnitude.",
     description: "Percent of present atmospheric level (PAL). Stockey et al. (2024) infer a sustained but moderate rise across the Neoproterozoic and Paleozoic rather than one step. Krause et al. (2018) model stepwise Paleozoic oxygenation. The classic view is a Neoproterozoic Oxygenation Event step. Values here are schematic, not digitised.",
@@ -279,7 +284,7 @@ window.CL_PANELS = [
   },
   {
     id: "dfi", name: "Benthic diel oxygen fluctuation index (derived)", short: "Diel O2 stress", group: "Derived",
-    kind: "derived", dataType: "Calculated index", scale: "Global (shelf)", defaultRole: "given",
+    kind: "derived", dataType: "Calculated index", scale: "Global (shelf)", tempo: { cls: "fast", note: "Diel stress acts within a day; its environmental drivers change over 0.1 to 10 Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 440, tier: "D" }],
     tierReason: "Calculated inside the app from the temperature, sea level, productivity (TOC) and local redox panels, following the reasoning of Hammarlund et al. (2025). It inherits all their uncertainties.",
     description: "Hammarlund et al. (2025) argue that warm, productive, flooded shelf seas with low background O2 experience large day-night oxygen swings. Index = warmth × (0.5 + 0.5 × productivity) × (1 − benthic O2) × (0.5 + 0.5 × flooding). It updates when you change the input variants.",

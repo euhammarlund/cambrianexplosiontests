@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cambrian Ledger: a timeline for testing hypotheses of early animal diversification</title>
+  <title>EvoEarth: Exploring the biotic and abiotic drivers of early animal evolution</title>
   <meta name="description" content="Drag a bar across the Ediacaran to Ordovician timeline and evaluate hypotheses for the Cambrian explosion and the GOBE against graded data.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 28 28%22%3E%3Crect x=%222%22 y=%224%22 width=%2224%22 height=%226%22 fill=%22%23FED96A%22/%3E%3Crect x=%222%22 y=%2211%22 width=%2224%22 height=%226%22 fill=%22%237FA056%22/%3E%3Crect x=%222%22 y=%2218%22 width=%2224%22 height=%226%22 fill=%22%23009270%22/%3E%3Cline x1=%2215%22 y1=%221%22 x2=%2215%22 y2=%2227%22 stroke=%22%23b3261e%22 stroke-width=%222.5%22/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://api.fontshare.com">
@@ -13,7 +13,7 @@
 <body>
   <header class="app-header" id="hdr">
     <div class="hdr-row">
-      <a class="brand" href="#" aria-label="Cambrian Ledger home">
+      <a class="brand" href="#" aria-label="EvoEarth home">
         <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
           <rect x="2" y="4" width="24" height="4" rx="1" fill="#FED96A"/>
           <rect x="2" y="10" width="24" height="4" rx="1" fill="#7FA056"/>
@@ -22,8 +22,8 @@
           <line x1="15" y1="1" x2="15" y2="27" stroke="#b3261e" stroke-width="2"/>
         </svg>
         <span>
-          <span class="brand-name">Cambrian Ledger</span><br>
-          <span class="brand-sub">Ediacaran to Ordovician, 640–440 Ma</span>
+          <span class="brand-name">EvoEarth</span><br>
+          <span class="brand-sub">Exploring the biotic and abiotic drivers of early animal evolution · Ediacaran to Ordovician, 640–440 Ma</span>
         </span>
       </a>
       <nav class="tabs" role="tablist" aria-label="Views">
@@ -33,7 +33,7 @@
         <button class="tab" role="tab" data-view="method" aria-selected="false">Method</button>
       </nav>
       <div class="spacer"></div>
-      <span class="schematic-flag" title="All curves are simplified digitisations to be checked step by step">Schematic data, version 0.1</span>
+      <span class="schematic-flag" title="All curves are simplified digitisations to be checked step by step">Schematic data, version 0.2</span>
       <div class="mode" role="group" aria-label="Mode">
         <button data-mode="guided" aria-pressed="true">Guided</button>
         <button data-mode="full" aria-pressed="false">Full</button>
@@ -46,9 +46,13 @@
     <section class="view" id="view-timeline">
       <div id="guide"></div>
       <div class="tl-layout">
-        <div>
-          <div class="stack" id="stack"></div>
-          <div class="heat" id="heat"></div>
+        <div class="tl-main">
+          <div class="sticky-scope">
+            <div class="sticky-time" id="sticky"></div>
+            <div class="stack" id="stack"></div>
+            <div class="heat" id="heat"></div>
+          </div>
+          <div class="tempo card" id="tempo"></div>
         </div>
         <aside class="side" id="side" aria-label="Evaluation at the bar"></aside>
       </div>
@@ -63,7 +67,7 @@
     <div class="drawer-in" id="drawer-in"></div>
   </dialog>
 
-  <footer class="footer">Cambrian Ledger v0.1, built for teaching and for structured discussion of hypotheses. Curves are schematic and must be checked against the cited sources.</footer>
+  <footer class="footer">EvoEarth v0.2, built for teaching and for structured discussion of hypotheses. Curves are schematic and must be checked against the cited sources.</footer>
 
   <script src="data/references.js"></script>
   <script src="data/timescale.js"></script>

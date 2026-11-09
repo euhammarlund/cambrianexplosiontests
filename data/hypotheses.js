@@ -186,10 +186,11 @@ window.CL_PRESETS = [
 window.CL_GUIDE = [
   { title: "1. Read the timeline", body: "Each row is one parameter, from the best constrained at the top to the least constrained at the bottom. The coloured letter on the right is the confidence tier (A strongest, D weakest). Click the source line under a panel to see the data behind it.", action: { label: "Show 640 to 440 Ma", zoom: "all" } },
   { title: "2. Move the bar", body: "Drag the red bar, or click anywhere on a plot. The values at the bar appear on the right of each panel, and the hypothesis ranking updates. Try the White Sea–Nama turnover at 550 Ma.", action: { label: "Go to 550 Ma", t: 550, zoom: "ce" } },
-  { title: "3. Decide what is given", body: "Every panel is either a Given (something you accept as the setting), an Outcome (something to explain), or Off. The default treats the environment as given and biology as the outcome. Each hypothesis can only be tested where its predictions match these roles.", action: { label: "Use bottom-up preset", preset: "bottomup" } },
+  { title: "3. Decide what is given", body: "The role of a panel does not change its data. It decides which question the data answer. Given means the panel is taken as a condition or possible cause. Outcome means it is the response to be explained. Off leaves it out. A prediction such as 'warming comes before the diversity rise' needs temperature as Given and diversity as Outcome; otherwise it is untestable. In Guided mode, roles are set by the preset menu only.", action: { label: "Use bottom-up preset", preset: "bottomup" } },
   { title: "4. Ask the hypotheses", body: "Move to 521 Ma (start of Cambrian Stage 3). Each hypothesis card shows which predictions are supported (green), contradicted (red) or untestable (grey), and how much of the hypothesis could be tested (coverage).", action: { label: "Go to 521 Ma", t: 521, zoom: "ce" } },
   { title: "5. Compare two radiations", body: "Practical 3 asks: What fuelled the Cambrian explosion and the GOBE, and were the drivers the same? Pin the bar at 521 Ma, then move to 465 Ma (Darriwilian) and compare.", action: { label: "Pin 521, go to 465", pin: 521, t: 465, zoom: "all" } },
-  { title: "6. Grade the parameters", body: "The importance chart shows how much the ranking changes if one panel is removed. A parameter that moves many scores is doing a lot of the work. Then switch a temperature or oxygen curve and see which conclusions survive.", action: { label: "Open the importance chart", focus: "importance" } }
+  { title: "6. Grade the parameters", body: "The importance chart shows how much the ranking changes if one panel is removed. A parameter that moves many scores is doing a lot of the work. Then switch a temperature or oxygen curve and see which conclusions survive.", action: { label: "Open the importance chart", focus: "importance" } },
+  { title: "7. Change the time resolution", body: "Diversity counted in long bins hides short pulses. Set the resolution to 10 Myr, then to 2.5 Myr (about the binning of Rasmussen et al. 2019). The ledger below the heatmap shows which links hold at every bin width. Slow drivers such as plate configuration tend to keep their link at coarse bins; fast drivers such as climate steps only show a link in short bins.", action: { label: "Use 10 Myr bins", res: 10, focus: "tempo" } }
 ];
 
 window.CL_QUESTIONS = [
@@ -197,5 +198,6 @@ window.CL_QUESTIONS = [
   "Did the same drivers operate during the GOBE, or are there differences?",
   "Which conclusions change when you switch the temperature curve or the oxygen curve?",
   "Which hypotheses cannot be tested with the current data, and what data would be needed?",
-  "How much of the diversity rise could be explained by sampling alone (H13)?"
+  "How much of the diversity rise could be explained by sampling alone (H13)?",
+  "Which conclusions survive from 1 Myr to 20 Myr bins, and which appear only at one resolution? What does that say about slow and fast drivers?"
 ];
