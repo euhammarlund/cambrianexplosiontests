@@ -10,6 +10,30 @@ The question for the lab is the one from Practical 3 of the lecture: what fuelle
 
 EvoEarth does not give you the answer. It helps you sort the ideas, test simple cause and effect links against data, and see how strong or weak the data are.
 
+## What you should get out of the lab
+
+After the lab you should be able to:
+
+1. **Sort and connect drivers.** Sort the suggested drivers into abiotic and biotic, and explain how life and environment change each other (feedbacks).
+2. **Test cause and effect in both radiations.** State a cause and effect idea, test it against data, and compare the Cambrian explosion with the GOBE.
+3. **Judge the quality of the data.** Say how good the data are: the confidence grade, real data or a simplified curve, global or regional, and the time resolution.
+4. **Separate correlation from causation.** Explain why two curves that move together do not prove a cause, and name other explanations, such as a common cause or better sampling.
+5. **Compare hypotheses on the timeline.** Use the timeline to compare published hypotheses and say which parameters matter most and how well they are known.
+6. **Argue and reflect.** Argue for a view on what drove the radiations and describe how your thinking changed.
+
+Each goal has a matching activity, and your PDF summary shows how far you got:
+
+| Goal | Where you practise it | What shows it in your PDF |
+|---|---|---|
+| 1 Sort and connect drivers | Stage 1 | Your sorting checks |
+| 2 Test cause and effect | Stage 2 | Ideas tested, at least one for both radiations |
+| 3 Judge data quality | Stage 2 ("How good are these data?") and Stage 3 (curves, resolution) | Data quality opened, curves or resolution changed |
+| 4 Correlation and causation | Stage 2 opinions | A written reason for your opinion |
+| 5 Compare hypotheses | Stage 3 (roles, both radiations) | Roles changed, both radiations visited |
+| 6 Argue and reflect | Stage 4 | Your reflection |
+
+In Stage 4 you also rate yourselves on each goal ("I can..."). Your teachers compare these ratings with what the logs show. This tells them how well the lab works. It is not a grade.
+
 ## How the lab works
 
 You work in pairs on one laptop. EvoEarth has four stages, which you normally do in order:
@@ -19,7 +43,7 @@ You work in pairs on one laptop. EvoEarth has four stages, which you normally do
 | 1 Concepts | Sort concept cards into Abiotic and Biotic | about 20 min |
 | 2 Cause and effect | Suggest links between cards and check them | about 30 to 40 min |
 | 3 EvoEarth explorer | Test hypotheses on the full timeline | about 45 to 60 min |
-| 4 Summary | Read your summary, reflect, hand in | about 10 to 15 min |
+| 4 Summary | Read your summary, answer the tick questions, reflect, download the PDF and hand it in | about 10 to 15 min |
 
 The Student guide button in the top bar opens this guide inside the app.
 
@@ -37,7 +61,7 @@ If you only want to use the full explorer, you can go straight to Stage 3. Press
 1. Open the EvoEarth web address you got from your teachers in a normal browser (Chrome, Edge, Firefox or Safari).
 2. Type a group or pair name (for example "Table 4"). First names are optional. Do not type personal ID numbers.
 3. Press **Start with Stage 1**, or **Go straight to Stage 3: explorer** if your teachers tell you to.
-4. Keep the same browser tab open for the whole lab. Your steps are saved in a session log as you go, but only while the page is open. Do not reload or close the page before you have handed in the locked file.
+4. Keep the same browser tab open for the whole lab. Your steps are saved in a session log as you go, but only while the page is open. Do not reload or close the page before you have downloaded the PDF in Stage 4.
 
 ## Stage 1: Concepts
 
@@ -104,15 +128,16 @@ Save insights in the notes box at the top of the explorer.
 ## Stage 4: Summary and hand-in
 
 1. Open Stage 4. It shows how your session developed: your sorting checks, your cause and effect ideas with EvoEarth's replies and your opinions, what you did in the explorer, and your insights and feedback.
-2. Answer the quick tick questions (how well you knew the topic, your background, how much you agree with eight statements about the lab, and what EvoEarth helped you with most). Press **Save our answers**. The answers help your teachers find out what the tool brought you.
-3. Write a short reflection: what changed in your thinking about the causes of the two radiations?
-4. Press **Download locked file for teachers** and upload the file where your teachers ask (for example in Absalon). The file is encrypted so that only the teachers can open it.
-5. If you want your own copy, press **Download readable summary (PDF)**.
-6. Press **Start a new session** only when you have handed in the locked file.
+2. Look at **Suggested reading**. It lists a few papers behind the hypotheses that came up in the ideas you tested. They are a good place to start if you want to go further, for example for an essay or the exam.
+3. Answer the quick tick questions: how well you knew the topic, your background, how well you think you reached each learning goal, four statements about the tool, and what EvoEarth helped you with most. Press **Save our answers**. The answers help your teachers find out what the tool brought you.
+4. Write a short reflection: what changed in your thinking about the causes of the two radiations?
+5. Press **Download readable PDF** and upload the PDF where your teachers ask (for example in Absalon). The PDF is your proof that you have finished the lab. It shows your summary, the suggested reading and your self-ratings against the learning goals, and it also carries your full session log so that your teachers can read all the PDFs together. Hand in the file as it is. Do not edit it or print it to a new PDF, because that removes the log.
+6. If you keep working after downloading, download the PDF again at the end and hand in the newest one.
+7. Press **Start a new session** only when you have handed in the PDF.
 
 ## What is recorded
 
-EvoEarth records your group name, the first names you choose to type, the time of each step, your card moves and checks, your cause and effect ideas, the settings you change in the explorer, and your answers to the tick questions, and everything you write in the insight, opinion, reflection and feedback boxes. Nothing is sent anywhere while you work. The log exists only in the open page until you download the locked file. Your teachers open the handed-in files on a teacher page that needs a login. Your teachers use the files to follow the lab and to improve EvoEarth, and the anonymised material may be used in a study of how the tool is used in teaching.
+EvoEarth records your group name, the first names you choose to type, the time of each step, your card moves and checks, your cause and effect ideas, the settings you change in the explorer, and your answers to the tick questions, and everything you write in the insight, opinion, reflection and feedback boxes. Nothing is sent anywhere while you work. The log exists only in the open page until you download the PDF. The PDF is not encrypted, so anyone who has the file can read it; it holds only your group name, the first names you chose to type and what you did in the lab. Your teachers read the handed-in PDFs on a teacher page that needs a login. Your teachers use the files to follow the lab and to improve EvoEarth, and the anonymised material may be used in a study of how the tool is used in teaching.
 
 ## Good habits when you work with the data
 
@@ -136,4 +161,4 @@ EvoEarth records your group name, the first names you choose to type, the time o
 
 ## If something does not work
 
-Write it in the "What is not working?" box on the page where it happened. Then tell a teacher. If you need to reload the page, first go to Stage 4 and download the locked file, so that your work so far is not lost. The browser asks before it closes a page with unsaved work.
+Write it in the "What is not working?" box on the page where it happened. Then tell a teacher. If you need to reload the page, first go to Stage 4 and download the PDF, so that your work so far is not lost. The browser asks before it closes a page with unsaved work.

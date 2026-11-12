@@ -518,16 +518,23 @@
   // Stage 4: tick questions (evaluation of the tool)
   // =====================================================================
   const LIKERT = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
+  // Intended learning outcomes. The same list is in the student guide, in the tick questions
+  // (self-rating) and in the teacher summary (self-rating next to what the log shows).
+  const OUTCOMES = [
+    { id: "o1", short: "Sort and connect drivers", self: "I can sort the drivers into abiotic and biotic, and explain how life and environment change each other.", evid: "Last Stage 1 check: at least 10 cards placed, 80% or more right" },
+    { id: "o2", short: "Test cause and effect in both radiations", self: "I can state a cause and effect idea, test it against data, and compare the Cambrian explosion with the GOBE.", evid: "At least 2 ideas tested, at least one for both radiations" },
+    { id: "o3", short: "Judge the quality of the data", self: "I can judge how good the data are: confidence grade, real data or simplified curve, global or regional, and time resolution.", evid: "Opened \"How good are these data?\" in Stage 2, or changed a curve or the resolution in Stage 3" },
+    { id: "o4", short: "Separate correlation from causation", self: "I can explain why two curves that move together do not prove a cause, and name other explanations.", evid: "Gave a written reason with an opinion on a Stage 2 reply" },
+    { id: "o5", short: "Compare hypotheses on the timeline", self: "I can use the timeline to compare hypotheses and say which parameters matter most and how well they are known.", evid: "Changed the roles in Stage 3 and looked at both radiations" },
+    { id: "o6", short: "Argue and reflect", self: "I can argue for a view on what drove the radiations and describe how my thinking changed.", evid: "Wrote a reflection in Stage 4" }
+  ];
   const SURVEY = {
     likert: [
-      ["l1", "Sorting the cards in Stage 1 helped us understand the concepts."],
-      ["l2", "Discussing with my partner was important for what I learnt."],
-      ["l3", "The replies in Stage 2 helped me think about cause and effect."],
-      ["l4", "I understand better that some data are more certain than others."],
-      ["l5", "I understand the difference between real data and simplified curves, and why time resolution matters."],
-      ["l6", "Stages 1 and 2 made the full explorer in Stage 3 easier to use."],
-      ["l7", "EvoEarth made me want to look closer at the data."],
-      ["l8", "I would like to use tools like EvoEarth in other courses."]
+      ...OUTCOMES.map(o => [o.id, o.self]),
+      ["t1", "Discussing with my partner was important for what I learnt."],
+      ["t2", "Stages 1 and 2 made the full explorer in Stage 3 easier to use."],
+      ["t3", "EvoEarth made me want to look closer at the data."],
+      ["t4", "I would like to use tools like EvoEarth in other courses."]
     ],
     familiar: ["Not at all", "A little", "Quite well", "Very well"],
     background: ["Geology or geoscience", "Biology", "Chemistry", "Physics", "Mixed (we differ)", "Other"],
@@ -540,7 +547,7 @@
       <fieldset class="sv-row"><legend>Before today, how well did you know the Cambrian explosion and the GOBE?</legend><div class="sv-opts">${SURVEY.familiar.map((o, i) => `<label><input type="radio" name="sv-fam" value="${i + 1}" ${String(v.familiar) === String(i + 1) ? "checked" : ""}> ${o}</label>`).join("")}</div></fieldset>
       <fieldset class="sv-row"><legend>Our main background</legend><div class="sv-opts">${SURVEY.background.map(o => `<label><input type="radio" name="sv-bg" value="${esc(o)}" ${v.background === o ? "checked" : ""}> ${esc(o)}</label>`).join("")}</div></fieldset>
       <div class="sv-table-wrap"><table class="sv-table"><thead><tr><th scope="col">How much do you agree?</th>${LIKERT.map(l => `<th scope="col">${l}</th>`).join("")}</tr></thead><tbody>
-        ${SURVEY.likert.map(([id, q]) => `<tr><th scope="row">${esc(q)}</th>${LIKERT.map((l, i) => `<td><label><input type="radio" name="sv-${id}" value="${i + 1}" ${String((v.likert || {})[id]) === String(i + 1) ? "checked" : ""} aria-label="${esc(l)}"><span class="sv-m">${l}</span></label></td>`).join("")}</tr>`).join("")}
+        ${SURVEY.likert.map(([id, q], k) => `${k === 0 ? `<tr class="sv-grp"><th colspan="6">After the lab: the learning goals</th></tr>` : k === OUTCOMES.length ? `<tr class="sv-grp"><th colspan="6">About the tool</th></tr>` : ""}<tr><th scope="row">${esc(q)}</th>${LIKERT.map((l, i) => `<td><label><input type="radio" name="sv-${id}" value="${i + 1}" ${String((v.likert || {})[id]) === String(i + 1) ? "checked" : ""} aria-label="${esc(l)}"><span class="sv-m">${l}</span></label></td>`).join("")}</tr>`).join("")}
       </tbody></table></div>
       <fieldset class="sv-row"><legend>What did EvoEarth help you with most? Tick any.</legend><div class="sv-opts">${SURVEY.helped.map(o => `<label><input type="checkbox" name="sv-help" value="${esc(o)}" ${(v.helped || []).includes(o) ? "checked" : ""}> ${esc(o)}</label>`).join("")}</div></fieldset>
       <button class="btn primary" id="sv-save">Save our answers</button> ${prev ? `<span class="hint">Answers saved. You can change them and save again.</span>` : ""}
@@ -555,6 +562,47 @@
   // =====================================================================
   // Stage 4: Summary
   // =====================================================================
+  // Suggested reading, chosen from the questions the group explored.
+  const NOT_PAPER = new Set(["rasmussenlecture", "determinants", "megaguilds", "pbdb", "macrostrat", "ics2026", "gts2020", "mcarthur2020"]);
+  const START_READS = ["servais2009", "sperling2013", "wood2019", "bowyer2024"];
+  function suggestReading(d, n) {
+    n = n || 4; d = d || LOG.data;
+    const byLabel = {}; Object.values(cardById).forEach(c => { byLabel[c.label] = c; });
+    const hs = {}, why = {}, topics = {};
+    const addH = (id, w, reason) => { if (!hypById[id]) return; hs[id] = (hs[id] || 0) + w; if (reason && !why[id]) why[id] = reason; };
+    d.events.filter(e => e.stage === 2 && e.type === "check").forEach(e => {
+      const idea = `${(e.data.causes || []).join(" + ")} -> ${(e.data.effects || []).join(" + ")}`;
+      (e.data.hyps || []).forEach(h => addH(h, 3, idea));
+      (e.data.causes || []).concat(e.data.effects || []).forEach(l => { const c = byLabel[l]; if (!c) return; (c.hyps || []).forEach(h => addH(h, 1, l)); (c.panels || []).forEach(p => { topics[p] = (topics[p] || 0) + 1; }); });
+    });
+    d.events.filter(e => e.stage === 1 && e.type === "check").slice(-1).forEach(e => (e.data.misplaced || []).forEach(m => { const c = cardById[m.card] || byLabel[m.label]; if (c) (c.hyps || []).forEach(h => addH(h, 0.5, `the card ${c.label}`)); }));
+    const score = {}, because = {};
+    Object.entries(hs).forEach(([hid, w]) => (hypById[hid].refs || []).forEach((rid, k) => {
+      if (!refById[rid] || NOT_PAPER.has(rid)) return;
+      score[rid] = Math.max(score[rid] || 0, w / (1 + 0.6 * k));
+      if (!because[rid] || w > because[rid].w) because[rid] = { w, hid, idea: why[hid] };
+    }));
+    Object.entries(score).forEach(([rid]) => (refById[rid].topics || []).forEach(t => { if (topics[t]) score[rid] += 0.1; }));
+    const perH = {}, out = [], seen = new Set();
+    const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
+    [1, 2].forEach(cap => ranked.forEach(([rid]) => {
+      if (out.length >= n || seen.has(rid)) return; const b = because[rid];
+      if ((perH[b.hid] || 0) >= cap) return; perH[b.hid] = (perH[b.hid] || 0) + 1; seen.add(rid);
+      const h = hypById[b.hid];
+      out.push({ r: refById[rid], why: `Behind ${h.id} ${h.name}${b.idea ? `, which came up in: ${b.idea}` : ""}.` });
+    }));
+    const tested = d.events.some(e => e.stage === 2 && e.type === "check");
+    if (tested && d.events.some(e => e.stage === 2 && e.type === "check" && e.data.interval !== "ce") && !out.some(x => x.r.id === "servais2009") && refById.servais2009) out.push({ r: refById.servais2009, why: "A short overview of the drivers of the GOBE, good for comparing with the Cambrian explosion." });
+    if (!out.length) START_READS.forEach(id => { if (refById[id]) out.push({ r: refById[id], why: "A good starting point on the drivers of early animal evolution." }); });
+    return out.slice(0, n + 1);
+  }
+  const refLink = r => r.url || (r.doi ? `https://doi.org/${r.doi}` : null);
+  function readingHTML() {
+    const L = suggestReading();
+    return `<div class="card reading"><h3>Suggested reading</h3><p class="hint">Papers behind the hypotheses that came up in the ideas you tested. The full list is in the References tab of the explorer.</p>
+      <ul class="read-list">${L.map(x => { const u = refLink(x.r); return `<li><b>${esc(refShort(x.r.id))}</b> ${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(x.r.title)}</a>` : esc(x.r.title)}${x.r.journal ? `${/[.?!]$/.test(x.r.title) ? "" : "."} <span class="hint">${esc(x.r.journal)}</span>` : ""}<br><span class="hint">${esc(x.why)}</span></li>`; }).join("")}</ul></div>`;
+  }
+
   function summaryMD(Sm) {
     const L = [];
     L.push(`# EvoEarth session summary`, ``, `Group: ${Sm.session.group || "(not set)"}  `, `Members: ${Sm.session.members || "(not given)"}  `, `Started: ${new Date(Sm.session.started).toLocaleString("en-GB")}  `, `Active time: about ${Sm.minutes} minutes  `, `App: ${Sm.session.app}`, ``);
@@ -581,7 +629,7 @@
     const bars = Sm.s1.checks.map((c, i) => `<div class="mbar"><span class="mlbl">Check ${i + 1}</span><span class="mtrack"><span class="mfill" style="width:${c.placed ? Math.round(100 * c.correct / c.placed) : 0}%"></span></span><span class="mval num">${c.correct}/${c.placed}</span></div>`).join("");
     el.innerHTML = `
       <div class="st-head"><div><p class="kicker">Stage 4 of 4 · before you leave</p><h1>Summary of your session</h1>
-        <p class="lead">This page collects what you did and wrote in Stages 1 to 3. Read it together, add a short reflection, and then hand in the locked session file to your teachers.</p></div>
+        <p class="lead">This page collects what you did and wrote in Stages 1 to 3. Read it together, answer the tick questions, add a short reflection, and then download the summary as a PDF and hand it in. The PDF is your proof that you have finished the lab.</p></div>
         <div class="sess card"><p><b>Group:</b> ${esc(Sm.session.group || "not set")}${Sm.session.members ? `<br><b>Members:</b> ${esc(Sm.session.members)}` : ""}<br><b>Time:</b> about ${Sm.minutes} min · ${Sm.nEvents} logged steps</p><button class="btn" id="s4-edit">Change group name</button></div>
       </div>
       <div class="s4-grid">
@@ -592,15 +640,17 @@
         <div class="card"><h3>Your insights</h3>${allIns.length ? `<ul>${allIns.map(([s, x]) => `<li><span class="tag insight">Stage ${s}</span> ${esc(x)}</li>`).join("")}</ul>` : `<p class="hint">No insights saved yet.</p>`}</div>
         <div class="card"><h3>Your feedback on the tool</h3>${allFb.length ? `<ul>${allFb.map(([s, x]) => `<li><span class="tag feedback">Stage ${s}</span> ${esc(x)}</li>`).join("")}</ul>` : `<p class="hint">No feedback yet.</p>`}</div>
       </div>
+      ${readingHTML()}
       ${surveyHTML(Sm.s4.survey)}
       <div class="card reflect"><label for="refl"><b>Reflection:</b> what changed in your thinking about the causes of the two radiations?</label>
         <textarea id="refl" rows="3"></textarea><button class="btn" id="refl-save">Save reflection</button>
         ${Sm.s4.reflections.length ? `<ul>${Sm.s4.reflections.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
         <label for="fb-4" style="margin-top:10px;display:block"><b>Anything else that did not work?</b></label><textarea id="fb-4" rows="2"></textarea><button class="btn" id="fb4-save">Send feedback</button></div>
-      <div class="card handin"><h3>Hand in</h3>
-        <p>The <b>locked session file</b> contains your full log and this summary. It is encrypted so that only the teachers can open it. Upload it where your teachers ask (for example in Absalon). The readable copy is for yourselves.</p>
-        <div class="hand-btns"><button class="btn primary big" id="s4-lock">Download locked file for teachers</button><button class="btn" id="s4-md">Download readable summary (PDF)</button><button class="btn" id="s4-new">Start a new session</button></div>
-        ${LOG.stored ? "" : `<p class="warn">The log is kept only while this page is open. Download the locked file before you reload or close the page.</p>`}
+      <div class="card handin"><h3>Finish and hand in</h3>
+        <p>When you are done, press <b>Download readable PDF</b> and upload the PDF where your teachers ask (for example in Absalon). The PDF shows this summary and also carries your full session log, so your teachers can read all the PDFs together. Do not edit or print the PDF to a new file, because that removes the log.</p>
+        ${Sm.s4.survey ? "" : `<p class="hint">Please answer the tick questions above before you download.</p>`}
+        <div class="hand-btns"><button class="btn primary big" id="s4-md">Download readable PDF</button><button class="btn" id="s4-new">Start a new session</button></div>
+        ${LOG.stored ? "" : `<p class="warn">The log is kept only while this page is open. Download the PDF before you reload or close the page. If you work on after downloading, download it again at the end.</p>`}
       </div>`;
     $("#sv-save").addEventListener("click", () => {
       const a = readSurvey(el);
@@ -610,16 +660,19 @@
     $("#refl-save").addEventListener("click", () => { const v = $("#refl").value.trim(); if (!v) return; LOG.add(4, "reflection", { text: v }); renderS4(); });
     $("#fb4-save").addEventListener("click", () => { const v = $("#fb-4").value.trim(); if (!v) return; LOG.add(4, "feedback", { text: v }); renderS4(); });
     $("#s4-edit").addEventListener("click", () => sessionDialog(true));
-    $("#s4-md").addEventListener("click", () => { const d = newPDF(); if (!d) return; pdfSession(d, LOG.summarise(), true); d.save(`evoearth_summary_${slug(Sm.session.group)}.pdf`); LOG.add(4, "download", { kind: "summary-pdf" }); });
-    $("#s4-lock").addEventListener("click", async () => {
-      if (!LOG.cryptoOK()) { toast("Locking needs a secure (https) page. Open EvoEarth from its web address."); return; }
-      LOG.add(4, "submit", {});
-      const payload = { session: LOG.data.session, events: LOG.data.events, summary: LOG.summarise(), summaryText: summaryMD(LOG.summarise()) };
-      try { const f = await LOG.lock(payload); download(`evoearth_${slug(payload.session.group)}_${new Date().toISOString().slice(0, 10)}.evoearth`, JSON.stringify(f), "application/json"); LOG.markHandedIn(); toast("Locked file downloaded"); }
-      catch (e) { toast("Could not lock the file in this browser"); }
+    $("#s4-md").addEventListener("click", async () => {
+      const d = newPDF(); if (!d) return;
+      LOG.add(4, "submit", { kind: "summary-pdf" });
+      try {
+        const packed = await LOG.packData();
+        pdfSession(d, LOG.summarise(), true, packed);
+        d.save(`evoearth_${slug(Sm.session.group)}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        LOG.markHandedIn(); toast("PDF downloaded. Upload it where your teachers ask.");
+      } catch (e) { toast("Could not make the PDF in this browser"); }
     });
-    $("#s4-new").addEventListener("click", () => { if (!confirm("Start a new session? Download the locked file first if you have not. The current log will be cleared from this browser.")) return; LOG.reset(); location.hash = "#stage1"; location.reload(); });
+    $("#s4-new").addEventListener("click", () => { if (!confirm("Start a new session? Download the PDF first if you have not. The current log will be cleared from this browser.")) return; LOG.reset(); location.hash = "#stage1"; location.reload(); });
   }
+  document.addEventListener("toggle", e => { const t = e.target; if (t && t.tagName === "DETAILS" && t.open && t.closest && t.closest("#s2-result")) LOG.add(2, "quality", {}); }, true);
   const slug = s => (s || "group").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "group";
   function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 
@@ -652,7 +705,7 @@
     for (let i = 1; i <= n; i++) { d.setPage(i); d.setFont("helvetica", "normal"); d.setFontSize(7.5); d.setTextColor(120, 115, 105); d.text(clean(`${txt}  |  page ${i} of ${n}`), PX, 820); }
     d.setTextColor(35, 32, 27);
   }
-  function pdfSession(d, Sm, standalone) {
+  function pdfSession(d, Sm, standalone, packed) {
     pH(d, `EvoEarth session summary: ${Sm.session.group || "group not named"}`, 16);
     pP(d, `Members: ${Sm.session.members || "not given"}  |  Started: ${new Date(Sm.session.started).toLocaleString("en-GB")}  |  Active time: about ${Sm.minutes} min  |  ${Sm.nEvents} logged steps  |  ${Sm.session.app}`, { grey: true });
     pH(d, "How the session developed"); LOG.narrative(Sm).forEach(x => pLi(d, x));
@@ -674,20 +727,33 @@
       pTable(d, ["Statement", "Answer"], SURVEY.likert.map(([id, q]) => [q, v.likert && v.likert[id] ? LIKERT[v.likert[id] - 1] : "-"]), [380]);
       pP(d, `Helped most with: ${(v.helped || []).join(", ") || "-"}`);
     } else pP(d, "Not answered.", { grey: true });
+    pH(d, "Learning goals");
+    pTable(d, ["Learning goal", "Your self-rating", "Seen in your log"], OUTCOMES.map(o => [o.short, v && v.likert && v.likert[o.id] ? LIKERT[v.likert[o.id] - 1] : "-", Sm.evid && Sm.evid[o.id] ? "Yes" : "Not yet"]), [260, 110]);
+    pP(d, "Seen in your log means that the session log shows the matching activity. It is a guide for discussion, not a grade.", { grey: true });
+    const rd = suggestReading(Sm.raw, 4);
+    pH(d, "Suggested reading");
+    rd.forEach(x => { const u = refLink(x.r); pLi(d, `${refShort(x.r.id)} ${x.r.title}${/[.?!]$/.test(x.r.title) ? "" : "."} ${x.r.journal || ""}${u ? ` ${u}` : ""}`); pP(d, x.why, { grey: true, indent: 10 }); });
     pH(d, "Reflection"); if (Sm.s4.reflections.length) Sm.s4.reflections.forEach(x => pLi(d, x)); else pP(d, "None saved.", { grey: true });
     const fb = [].concat(Sm.s1.feedback.map(x => ["1", x]), Sm.s2.feedback.map(x => ["2", x]), Sm.s3.feedback.map(x => ["3", x]), Sm.s4.feedback.map(x => ["4", x]));
     pH(d, "Feedback on the tool"); if (fb.length) fb.forEach(([st, x]) => pLi(d, `Stage ${st}: ${x}`)); else pP(d, "None given.", { grey: true });
+    if (packed) {
+      pP(d, "This PDF also carries the full EvoEarth session log, so that the teachers can read many PDFs together. Please hand in the file as it is.", { grey: true });
+      d.setDocumentProperties({ title: `EvoEarth session summary: ${clean(Sm.session.group || "group")}`, subject: "EvoEarth session summary", author: clean(Sm.session.group || "EvoEarth"), creator: Sm.session.app, keywords: packed });
+    }
     if (standalone) pFooter(d, `EvoEarth ${Sm.session.group || ""} summary, ${new Date().toLocaleDateString("en-GB")}`);
   }
   function pdfOverall(ok, user) {
     const d = newPDF(); if (!d) return null;
     const A = aggregate(ok);
     pH(d, "EvoEarth overall summary", 18);
-    pP(d, `Geobiology lab, IGN and Globe Institute, University of Copenhagen. Generated ${new Date().toLocaleString("en-GB")} by ${user || "teacher"} from ${ok.length} session files.`, { grey: true });
+    pP(d, `Geobiology lab, IGN and Globe Institute, University of Copenhagen. Generated ${new Date().toLocaleString("en-GB")} by ${user || "teacher"} from ${ok.length} student ${ok.length === 1 ? "PDF" : "PDFs"}.`, { grey: true });
     pH(d, "Overview");
-    pLi(d, `${ok.length} sessions, ${A.trials} cause and effect trials, median active time ${A.median} min.`);
+    pLi(d, `${ok.length} ${ok.length === 1 ? "session" : "sessions"}, ${A.trials} cause and effect ${A.trials === 1 ? "trial" : "trials"}, median active time ${A.median} min.`);
     pLi(d, `Stage 1 accuracy: first check ${A.firstPct == null ? "-" : A.firstPct + "%"}, last check ${A.lastPct == null ? "-" : A.lastPct + "%"}.`);
     pLi(d, `Opinions on Stage 2 replies: ${Object.entries(A.ops).map(([k, v]) => `${k} ${v}`).join(", ") || "none"}.`);
+    pH(d, "Learning goals");
+    pTable(d, ["Learning goal", "Seen in the log when", "Self-rating mean (n)", "Agreed", "Seen in the log"], A.outc.map(o => [o.short, o.evid, o.mean == null ? "-" : `${o.mean.toFixed(1)} (${o.n})`, o.n ? Math.round(100 * o.agree / o.n) + "%" : "-", `${o.seenPct}% (${o.seen} of ${ok.length})`]), [120, 170, 70, 45]);
+    pP(d, "Self-rating is the mean of the matching \"I can...\" tick question. Agreed is the share answering 4 or 5. Seen in the log is the share of groups whose log shows the activity. Both are indicators, not grades.", { grey: true });
     pH(d, "Tick questions");
     if (A.sv.n) {
       pTable(d, ["Statement", "n", "Mean (1-5)"].concat(LIKERT.map((l, i) => String(i + 1))), A.sv.items.map(it => [it.q, String(it.n), it.mean == null ? "-" : it.mean.toFixed(1)].concat(it.dist.map(String))), [220, 24, 50]);
@@ -714,14 +780,14 @@
   }
 
   // =====================================================================
-  // Teacher page (login, then open the locked files handed in by students)
+  // Teacher page (login, then read the student PDFs, which carry the session log)
   // =====================================================================
   const TS = { key: null, user: null, files: [], busy: false };
   function renderTeacher() {
     const el = $("#stage-teacher");
     if (!TS.key) {
       el.innerHTML = `<div class="st-head"><div><p class="kicker">Teachers only</p><h1>Teacher login</h1>
-        <p class="lead">Log in to open the locked session files that the students hand in, read their summaries and download them as PDF.</p></div></div>
+        <p class="lead">Log in to read the PDFs that the students hand in, see what they did and how far they reached the learning goals, and download an overall summary.</p></div></div>
         <form class="card t-login" id="t-login" autocomplete="off">
           <label for="t-user">User</label><input id="t-user" maxlength="10" autocapitalize="characters" placeholder="Your initials">
           <label for="t-pw">Password</label><input id="t-pw" type="password" maxlength="60">
@@ -744,10 +810,10 @@
     }
     const ok = TS.files.filter(f => f.data);
     el.innerHTML = `<div class="st-head"><div><p class="kicker">Teachers only · logged in as ${esc(TS.user)}</p><h1>Session summaries</h1>
-      <p class="lead">Load the .evoearth files that the students handed in (for example from Absalon). They are opened in this browser; nothing is uploaded. Then read the overview or download the summaries as PDF.</p></div>
+      <p class="lead">Load the PDFs that the students handed in (for example downloaded from Absalon). Select many at once. They are read in this browser; nothing is uploaded. Then read the overview or download the overall summary.</p></div>
       <div class="sess card"><p><b>${esc(TS.user)}</b><br>${ok.length} session${ok.length === 1 ? "" : "s"} loaded</p><button class="btn" id="t-out">Log out</button></div></div>
       <div class="card t-load">
-        <label class="btn primary">Load session files <input type="file" id="t-files" accept=".evoearth,.json" multiple hidden></label>
+        <label class="btn primary">Load student PDFs <input type="file" id="t-files" accept=".pdf,application/pdf,.evoearth" multiple hidden></label>
         <span class="hint">${TS.files.length ? `${ok.length} opened${TS.files.length - ok.length ? `, ${TS.files.length - ok.length} failed` : ""}. You can add more files at any time.` : "You can select many files at once."}</span>
         ${ok.length ? `<div class="hand-btns"><button class="btn primary" id="t-pdf">Overall summary with all sessions (PDF)</button><button class="btn" id="t-csv">All events (CSV)</button><button class="btn" id="t-json">Combined data (JSON)</button><button class="btn" id="t-clear">Clear loaded files</button></div>` : ""}
       </div>
@@ -757,10 +823,13 @@
     $("#t-files").addEventListener("change", async e => {
       for (const f of e.target.files) {
         try {
-          const j = JSON.parse(await f.text()); const d = await LOG.unlock(j, TS.key);
-          if (TS.files.some(x => x.data && x.data.session.id === d.session.id && x.data.events.length === d.events.length)) continue;
+          let d;
+          if (/\.evoearth$/i.test(f.name)) d = await LOG.unlock(JSON.parse(await f.text()), TS.key);
+          else d = await LOG.readPDF(await f.arrayBuffer());
+          const i = TS.files.findIndex(x => x.data && x.data.session.id === d.session.id);
+          if (i >= 0) { if (d.events.length > TS.files[i].data.events.length) TS.files[i] = { name: f.name, data: d }; continue; }
           TS.files.push({ name: f.name, data: d });
-        } catch (x) { TS.files.push({ name: f.name, err: "could not be opened with this key" }); }
+        } catch (x) { TS.files.push({ name: f.name, err: /\.evoearth$/i.test(f.name) ? "could not be opened with this key" : `${x.message}. Use the PDF from the Download button in Stage 4, not a printed or edited copy.` }); }
       }
       renderTeacher();
     });
@@ -773,9 +842,9 @@
         download("evoearth_all_events.csv", rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
       });
       $("#t-json").addEventListener("click", () => download("evoearth_combined.json", JSON.stringify(ok.map(f => f.data), null, 1), "application/json"));
-      $$("[data-spdf]", el).forEach(b => b.addEventListener("click", () => {
+      $$("[data-spdf]", el).forEach(b => b.addEventListener("click", async () => {
         const f = ok[+b.dataset.spdf], d = newPDF(); if (!d) return;
-        pdfSession(d, LOG.summarise(f.data), true); d.save(`evoearth_summary_${slug(f.data.session.group)}.pdf`);
+        pdfSession(d, LOG.summarise(f.data), true, await LOG.packData(f.data)); d.save(`evoearth_summary_${slug(f.data.session.group)}.pdf`);
       }));
     }
   }
@@ -795,13 +864,20 @@
       bg: cnt(svs.map(a => a.background)), fam: cnt(svs.map(a => a.familiar ? SURVEY.familiar[a.familiar - 1] : null)), helped: cnt(svs.flatMap(a => a.helped || []))
     };
     const mins = sums.map(x => x.minutes).sort((a, b) => a - b);
-    return { sv, median: mins.length ? mins[Math.floor(mins.length / 2)] : 0, sums, firstPct: pct(first), lastPct: pct(lastC), miss: Object.entries(miss).sort((a, b) => b[1] - a[1]), rel: Object.entries(rel).sort((a, b) => b[1].n - a[1].n), ops, trials: sums.reduce((x, s) => x + s.s2.trials.length, 0), minutes: sums.map(s => s.minutes) };
+    const outc = OUTCOMES.map(o => {
+      const v = svs.map(a => a.likert && a.likert[o.id]).filter(Boolean);
+      const e = sums.filter(x => x.evid && x.evid[o.id]).length;
+      return { ...o, n: v.length, mean: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null, agree: v.filter(x => x >= 4).length, seen: e, seenPct: sums.length ? Math.round(100 * e / sums.length) : 0 };
+    });
+    return { outc, sv, median: mins.length ? mins[Math.floor(mins.length / 2)] : 0, sums, firstPct: pct(first), lastPct: pct(lastC), miss: Object.entries(miss).sort((a, b) => b[1] - a[1]), rel: Object.entries(rel).sort((a, b) => b[1].n - a[1].n), ops, trials: sums.reduce((x, s) => x + s.s2.trials.length, 0), minutes: sums.map(s => s.minutes) };
   }
   function teacherOverview(ok) {
     const A = aggregate(ok);
     return `<div class="s4-grid">
-      <div class="card"><h3>Overview</h3><p>${ok.length} sessions · ${A.trials} cause and effect trials · median time ${A.median} min</p><p>Stage 1 accuracy: first check ${A.firstPct == null ? "–" : A.firstPct + "%"}, last check ${A.lastPct == null ? "–" : A.lastPct + "%"}.</p><p class="hint">Opinions on Stage 2 replies: ${Object.entries(A.ops).map(([k, v]) => `${esc(k)} ${v}`).join(", ") || "none"}</p></div>
+      <div class="card"><h3>Overview</h3><p>${ok.length} ${ok.length === 1 ? "session" : "sessions"} · ${A.trials} cause and effect ${A.trials === 1 ? "trial" : "trials"} · median time ${A.median} min</p><p>Stage 1 accuracy: first check ${A.firstPct == null ? "–" : A.firstPct + "%"}, last check ${A.lastPct == null ? "–" : A.lastPct + "%"}.</p><p class="hint">Opinions on Stage 2 replies: ${Object.entries(A.ops).map(([k, v]) => `${esc(k)} ${v}`).join(", ") || "none"}</p></div>
       <div class="card"><h3>Most often misplaced cards</h3><ol>${A.miss.slice(0, 10).map(([k, v]) => `<li>${esc(k)} (${v})</li>`).join("") || "<li>none</li>"}</ol></div>
+      <div class="card wide"><h3>Learning goals</h3><p class="hint">Self-rating: mean of the "I can..." tick questions (1 strongly disagree to 5 strongly agree) and the share that agreed. Seen in the log: share of groups whose log shows the activity. The two measures are indicators, not grades.</p>
+        <table class="s4t"><thead><tr><th>Learning goal</th><th>Self-rating</th><th>Agreed (4 or 5)</th><th>Seen in the log</th></tr></thead><tbody>${A.outc.map(o => `<tr><td><b>${esc(o.short)}</b><br><span class="hint">${esc(o.evid)}</span></td><td>${o.mean == null ? "–" : o.mean.toFixed(1)} <span class="hint">(n ${o.n})</span></td><td>${o.n ? Math.round(100 * o.agree / o.n) + "%" : "–"}</td><td><span class="mtrack ob"><span class="mfill" style="width:${o.seenPct}%"></span></span> ${o.seenPct}% <span class="hint">(${o.seen} of ${ok.length})</span></td></tr>`).join("")}</tbody></table></div>
       <div class="card wide"><h3>Cause and effect ideas tried</h3><table class="s4t"><thead><tr><th>Idea</th><th>Groups</th><th>EvoEarth reply</th><th>Opinions</th></tr></thead><tbody>${A.rel.slice(0, 30).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.n}</td><td>${esc(v.verdict)}</td><td>${Object.entries(v.op).map(([a, b]) => `${esc(a)} ${b}`).join(", ") || "–"}</td></tr>`).join("")}</tbody></table></div>
       <div class="card wide"><h3>Tick questions</h3>${A.sv.n ? `<p class="hint">${A.sv.n} of ${ok.length} groups answered. Mean on a scale from 1 (strongly disagree) to 5 (strongly agree).</p>${A.sv.items.map(it => `<div class="mbar sv-bar"><span class="mlbl">${esc(it.q)}</span><span class="mtrack"><span class="mfill" style="width:${it.mean ? Math.round(100 * (it.mean - 1) / 4) : 0}%"></span></span><span class="mval num">${it.mean == null ? "–" : it.mean.toFixed(1)}</span></div>`).join("")}<p class="hint">Background: ${Object.entries(A.sv.bg).map(([k, v]) => `${esc(k)} ${v}`).join(", ") || "–"} · Helped most with: ${Object.entries(A.sv.helped).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k)} ${v}`).join(", ") || "–"}</p>` : `<p class="hint">No group has answered the tick questions yet.</p>`}</div>
       <div class="card wide"><h3>Sessions</h3><table class="s4t"><thead><tr><th>Group</th><th>Minutes</th><th>Stage 1 checks</th><th>Stage 2 trials</th><th>Stage 3 changes</th><th>Insights</th><th>Feedback</th><th>Summary</th></tr></thead><tbody>${A.sums.map((s, i) => `<tr><td>${esc(s.session.group)}</td><td>${s.minutes}</td><td>${s.s1.checks.map(c => `${c.correct}/${c.placed}`).join(", ") || "–"}</td><td>${s.s2.trials.length}</td><td>${s.s3.actions}</td><td>${s.s1.insights.length + s.s2.insights.length + s.s3.insights.length}</td><td>${s.s1.feedback.length + s.s2.feedback.length + s.s3.feedback.length + s.s4.feedback.length}</td><td><button class="btn" data-spdf="${i}">PDF</button></td></tr>`).join("")}</tbody></table></div>
@@ -838,10 +914,10 @@
     if (!d) { d = document.createElement("dialog"); d.id = "sess-dlg"; d.className = "sess-dlg"; document.body.appendChild(d); }
     const s = LOG.data.session;
     d.innerHTML = `<form method="dialog" id="sess-form"><h2>Welcome to EvoEarth</h2>
-      <p>You will work in pairs through four stages. Everything you do is saved in a session log. At the end you hand in a locked copy to your teachers.</p>
+      <p>You will work in pairs through four stages. Everything you do is saved in a session log. At the end you download a PDF summary and hand it in to your teachers.</p>
       <label>Group or pair name <input id="sg" required maxlength="40" value="${esc(s.group)}" placeholder="For example: Table 4"></label>
       <label>First names (optional) <input id="sm" maxlength="80" value="${esc(s.members)}" placeholder="For example: Ana and Bo"></label>
-      <p class="hint">The log is kept only while this page is open. Do not reload or close the page before you have handed in the locked file in Stage 4.</p>
+      <p class="hint">The log is kept only while this page is open. Do not reload or close the page before you have downloaded the PDF in Stage 4.</p>
       <div class="hand-btns"><button class="btn primary" value="ok">${edit ? "Save" : "Start with Stage 1"}</button>${edit ? `<button class="btn" value="cancel" formnovalidate>Cancel</button>` : `<button class="btn" value="s3" formnovalidate>Go straight to Stage 3: explorer</button>`}</div>
       ${edit ? "" : `<p class="hint">You can add a group name later with the button at the top right.</p>`}</form>`;
     $("#sess-form", d).addEventListener("submit", e => {

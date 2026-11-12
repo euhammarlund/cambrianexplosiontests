@@ -523,3 +523,10 @@ dialog.drawer::backdrop { background: rgba(35, 32, 27, 0.35); }
 .t-load .hand-btns { flex-basis: 100%; margin: 0; }
 .s4-grid > * { min-width: 0; }
 @media (max-width: 760px) { .s4-grid { grid-template-columns: minmax(0, 1fr); } }
+/* v0.5 */
+.sv-table tr.sv-grp th { background: var(--surface-2, #efe9dd); font-size: var(--text-sm); font-weight: 600; text-align: left; padding: 8px; }
+.mtrack.ob { display: inline-block; width: 90px; vertical-align: middle; margin-right: 6px; }
+.reading { margin-top: 14px; }
+.read-list { margin: 6px 0 0; padding-left: 18px; font-size: var(--text-sm); }
+.read-list li { margin: 6px 0; }
+.read-list a { color: var(--teal); }

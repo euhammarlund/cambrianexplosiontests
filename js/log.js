@@ -1,9 +1,10 @@
-// EvoEarth session log and locked export for teachers.
+// EvoEarth session log.
 // The log is kept in memory while the page is open. Nothing is stored or sent elsewhere.
-// "Locked" files are encrypted with the teachers' public key (RSA-OAEP 3072 wraps an AES-GCM 256 key).
-// Only the teachers' private key can open them, on the Teacher page (#teacher).
+// The students hand in a readable PDF summary. The full log is embedded in the PDF
+// (compressed and base64 encoded in the document metadata), so that the Teacher page (#teacher)
+// can read many PDFs at once and quantify the outcomes. Older "locked" .evoearth files can still be opened.
 (function () {
-  const VERSION = "0.4";
+  const VERSION = "0.5";
   const now = () => new Date().toISOString();
   const rid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
 
@@ -63,7 +64,17 @@
     const visits = ev.filter(e => e.type === "visit").map(e => e.stage);
     const first = ev.length ? ev[0].t : d.session.started, last = ev.length ? ev[ev.length - 1].t : d.session.started;
     const minutes = Math.max(0, Math.round((new Date(last) - new Date(first)) / 60000));
-    return { session: d.session, minutes, visits, s1, s2, s3, s4, nEvents: ev.length };
+    const lastC = s1.checks[s1.checks.length - 1];
+    const inCE = a => a <= 545 && a >= 505, inGB = a => a <= 490 && a >= 450;
+    const evid = {
+      o1: !!(lastC && lastC.placed >= 10 && lastC.correct / lastC.placed >= 0.8),
+      o2: s2.trials.length >= 2 && trials.some(e => e.data.interval === "both"),
+      o3: by(2, "quality").length > 0 || s3.curves.length > 0 || s3.resolutions.length > 0,
+      o4: opinions.some(o => (o.data.text || "").trim().length >= 15),
+      o5: s3.presets.length > 0 && s3.ages.some(inCE) && s3.ages.some(inGB),
+      o6: s4.reflections.some(x => x.trim().length >= 30)
+    };
+    return { session: d.session, minutes, visits, s1, s2, s3, s4, evid, nEvents: ev.length, handedIn: ev.some(e => e.type === "submit"), raw: d };
   }
 
   // A short readable account of how the session developed.
@@ -121,13 +132,40 @@
     return JSON.parse(new TextDecoder().decode(pt));
   }
 
+  // ---------- data embedded in the student PDF ----------
+  const TAG = "EVOEARTH-DATA-v1";
+  async function packData(src) {
+    src = src || data;
+    const json = JSON.stringify({ format: "evoearth-data-v1", session: src.session, events: src.events });
+    const bytes = new TextEncoder().encode(json);
+    if (window.CompressionStream) {
+      try { const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer(); return `${TAG}-gz:${b64(buf)}:END`; } catch (e) { /* fall through */ }
+    }
+    return `${TAG}-raw:${b64(bytes)}:END`;
+  }
+  async function readPDF(buf) {
+    const u = new Uint8Array(buf); let txt = "";
+    for (let i = 0; i < u.length; i += 0x8000) txt += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+    const all = [...txt.matchAll(/EVOEARTH-DATA-v1-(gz|raw):([A-Za-z0-9+\/=]+):END/g)];
+    if (!all.length) throw new Error("no EvoEarth data in this PDF");
+    const m = all[all.length - 1];
+    let bytes = unb64(m[2]);
+    if (m[1] === "gz") {
+      if (!window.DecompressionStream) throw new Error("this browser cannot read compressed data");
+      bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    }
+    const d = JSON.parse(new TextDecoder().decode(bytes));
+    if (!d || !d.session || !Array.isArray(d.events)) throw new Error("the EvoEarth data in this PDF are damaged");
+    return d;
+  }
+
   window.EV_LOG = {
     VERSION,
     get data() { return data; },
     get stored() { return false; },
     markHandedIn() { handedIn = true; },
     teacherLogin,
-    add, reset, save, summarise, narrative, lock, unlock, cryptoOK,
+    add, reset, save, summarise, narrative, lock, unlock, cryptoOK, packData, readPDF,
     setSession(fields) { Object.assign(data.session, fields); save(); },
     on(f) { listeners.push(f); }
   };
