@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EvoEarth: Exploring the biotic and abiotic drivers of early animal evolution</title>
-  <meta name="description" content="Drag a bar across the Ediacaran to Ordovician timeline and evaluate hypotheses for the Cambrian explosion and the GOBE against graded data.">
+  <meta name="description" content="A four-stage lab: sort concepts, test cause and effect, explore the Ediacaran to Ordovician timeline, and summarise. Hypotheses for the Cambrian explosion and the GOBE against graded data.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 28 28%22%3E%3Crect x=%222%22 y=%224%22 width=%2224%22 height=%226%22 fill=%22%23FED96A%22/%3E%3Crect x=%222%22 y=%2211%22 width=%2224%22 height=%226%22 fill=%22%237FA056%22/%3E%3Crect x=%222%22 y=%2218%22 width=%2224%22 height=%226%22 fill=%22%23009270%22/%3E%3Cline x1=%2215%22 y1=%221%22 x2=%2215%22 y2=%2227%22 stroke=%22%23b3261e%22 stroke-width=%222.5%22/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=zodiak@600&display=swap" rel="stylesheet">
@@ -23,17 +23,28 @@
         </svg>
         <span>
           <span class="brand-name">EvoEarth</span><br>
-          <span class="brand-sub">Exploring the biotic and abiotic drivers of early animal evolution · Ediacaran to Ordovician, 640–440 Ma</span>
+          <span class="brand-sub">Exploring the biotic and abiotic drivers of early animal evolution</span>
         </span>
       </a>
-      <nav class="tabs" role="tablist" aria-label="Views">
+      <nav class="stages" aria-label="Stages">
+        <button class="stage-btn" data-stage="1"><span class="sn">1</span> Concepts</button>
+        <button class="stage-btn" data-stage="2"><span class="sn">2</span> Cause and effect</button>
+        <button class="stage-btn" data-stage="3"><span class="sn">3</span> EvoEarth explorer</button>
+        <button class="stage-btn" data-stage="4"><span class="sn">4</span> Summary</button>
+      </nav>
+      <div class="spacer"></div>
+      <button class="btn ghost" data-stage="guide">Student guide</button>
+      <button class="chip" id="sess-chip" title="Group name for the session log">Set group</button>
+    </div>
+    <div class="hdr-row s3bar" id="s3bar" hidden>
+      <nav class="tabs" role="tablist" aria-label="Explorer views">
         <button class="tab" role="tab" data-view="timeline" aria-selected="true">Timeline</button>
         <button class="tab" role="tab" data-view="hypotheses" aria-selected="false">Hypotheses</button>
         <button class="tab" role="tab" data-view="references" aria-selected="false">References</button>
         <button class="tab" role="tab" data-view="method" aria-selected="false">Method</button>
       </nav>
       <div class="spacer"></div>
-      <span class="schematic-flag" title="All curves are simplified digitisations to be checked step by step">Schematic data, version 0.2</span>
+      <span class="schematic-flag" title="Diversity, skeletal carbonate and modes of life now include real data; most environmental curves are still schematic">Mixed real and schematic data, version 0.4</span>
       <div class="mode" role="group" aria-label="Mode">
         <button data-mode="guided" aria-pressed="true">Guided</button>
         <button data-mode="full" aria-pressed="false">Full</button>
@@ -43,7 +54,14 @@
   </header>
 
   <main>
+    <section class="stage-sec" id="stage-1" hidden></section>
+    <section class="stage-sec" id="stage-2" hidden></section>
+    <section class="stage-sec" id="stage-4" hidden></section>
+    <section class="stage-sec" id="stage-guide" hidden></section>
+    <section class="stage-sec" id="stage-teacher" hidden></section>
+    <div class="stage-sec" id="stage-3" hidden>
     <section class="view" id="view-timeline">
+      <div id="s3-notes"></div>
       <div id="guide"></div>
       <div class="tl-layout">
         <div class="tl-main">
@@ -60,6 +78,7 @@
     <section class="view" id="view-hypotheses" hidden></section>
     <section class="view" id="view-references" hidden></section>
     <section class="view" id="view-method" hidden></section>
+    </div>
   </main>
 
   <dialog class="drawer" id="drawer" aria-label="Panel details">
@@ -67,14 +86,22 @@
     <div class="drawer-in" id="drawer-in"></div>
   </dialog>
 
-  <footer class="footer">EvoEarth v0.2, built for teaching and for structured discussion of hypotheses. Curves are schematic and must be checked against the cited sources.</footer>
+  <footer class="footer">EvoEarth v0.4, a lab for the Geobiology initiatives at IGN and the Globe Institute, University of Copenhagen. Diversity, skeletal carbonate and modes of life include real data digitised from published figures; other curves are schematic and must be checked against the cited sources. <a class="foot-teacher" href="#teacher">Teacher login</a></footer>
 
   <script src="data/references.js"></script>
   <script src="data/timescale.js"></script>
+  <script src="data/digitised.js"></script>
   <script src="data/panels.js"></script>
   <script src="data/hypotheses.js"></script>
+  <script src="data/concepts.js"></script>
+  <script src="data/guide.js"></script>
+  <script src="js/teacherkey.js"></script>
+  <script src="js/log.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/app.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/stages.js"></script>
 <script data-pplx-inline-edit>
 (function () {
   if (window === window.top) return;

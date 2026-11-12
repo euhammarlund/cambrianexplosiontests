@@ -3,7 +3,7 @@
   const TIER_W = { A: 1, B: 0.75, C: 0.5, D: 0.3 };
   const STEP = 0.5; // Myr sampling step for continuous curves
   const BIN_ORIGIN = 640; // bins are counted from this age (Ma, display scale)
-  const RESOLUTIONS = [1, 2, 2.5, 5, 10, 20]; // bin widths offered (Myr)
+  const RESOLUTIONS = [0.25, 0.5, 1, 2, 2.5, 5, 10, 20]; // bin widths offered (Myr)
 
   const panelsById = {};
   window.CL_PANELS.forEach(p => { panelsById[p.id] = p; });
@@ -140,18 +140,49 @@
   }
 
   // ---------- time resolution (binning) ----------
-  // With state.res = r (Myr), every series is replaced by the mean of each bin of width r,
-  // counted from BIN_ORIGIN. Tests then see one value per bin.
+  // Every curve is tested as bin means. The bin width is never finer than the data behind the curve:
+  //   dataRes(panel)  = resolution of the data as entered in the app (Myr).
+  //                     Digitised and data-summary curves declare it (variant.dataRes).
+  //                     Schematic curves use the median spacing of their control points, rounded up to an offered width.
+  //   effRes(panel)   = state.res ? max(state.res, dataRes) : dataRes   (state.res null = native mode)
+  // Bins are counted from BIN_ORIGIN so that all panels with the same width share bin edges.
+  function snapUp(x) { for (const r of RESOLUTIONS) if (r >= x * 0.9) return r; return RESOLUTIONS[RESOLUTIONS.length - 1]; }
+  function spacingOf(pts) {
+    if (!pts || pts.length < 2) return null;
+    const d = []; for (let i = 1; i < pts.length; i++) d.push(Math.abs(pts[i - 1][0] - pts[i][0]));
+    d.sort((a, b) => a - b); return d[Math.floor(d.length / 2)];
+  }
+  function dataRes(panel, state, opts) {
+    if (!panel || panel.kind === "traits" || panel.kind === "framework") return null;
+    if (panel.kind === "derived") {
+      const ins = ["temp", "sealevel", "nutrients", "localredox"].map(id => dataRes(panelsById[id], state, id === "temp" ? null : { variant: panelsById[id].variants[id === "nutrients" ? panelsById[id].variants.findIndex(v => v.id === "toc") : 0].id }));
+      return Math.max.apply(null, ins.filter(x => x));
+    }
+    const v = variantOf(panel, state, opts && opts.variant);
+    if (v.dataRes) return v.dataRes;
+    if (v._autoRes == null) v._autoRes = snapUp(spacingOf(v.points) || 20);
+    return v._autoRes;
+  }
+  function effRes(panel, state, opts) {
+    const d = dataRes(panel, state, opts); if (d == null) return null;
+    return state.res ? Math.max(state.res, d) : d;
+  }
+  // True when the requested width is finer than the data, so the panel is held at its data limit.
+  function heldAt(panel, state, opts) {
+    const d = dataRes(panel, state, opts);
+    return d != null && state.res && d > state.res ? d : null;
+  }
   function binIndex(t, r) { return Math.floor((BIN_ORIGIN - t) / r + 1e-9); }
   function binBounds(k, r) { return [BIN_ORIGIN - k * r, BIN_ORIGIN - (k + 1) * r]; }
-  function binKey(panel, k, state, opts) {
+  function binKey(panel, k, r, state, opts) {
     const v = panel.kind === "curve" ? variantOf(panel, state, opts && opts.variant).id : panel.kind === "derived" ? "dfi:" + state.variants.temp : (opts && opts.row) || "";
-    return `${panel.id}|${v}|${state.ageModel}|${state.res}|${k}`;
+    return `${panel.id}|${v}|${state.ageModel}|${r}|${k}`;
   }
-  // Mean of normalised (and raw) values in bin k. Returns null if less than half the bin has data.
+  // Mean of normalised (and raw) values in bin k of width r. Returns null if less than half the bin has data.
   function binMean(panel, k, state, opts) {
-    const r = state.res, cache = state.binCache;
-    const key = cache ? binKey(panel, k, state, opts) : null;
+    const r = (opts && opts.r) || effRes(panel, state, opts), cache = state.binCache;
+    if (!r) return null;
+    const key = cache ? binKey(panel, k, r, state, opts) : null;
     if (cache && cache.has(key)) return cache.get(key);
     const [a, b] = binBounds(k, r);
     const n = Math.max(2, Math.round(r / 0.25));
@@ -161,23 +192,26 @@
       const v = valueAt(panel, toICS(t, state.ageModel), state, opts);
       if (v) { sn += v.n; sv += v.v; slo += v.lo; shi += v.hi; c++; }
     }
-    const out = c >= n / 2 ? { n: sn / c, v: sv / c, lo: slo / c, hi: shi / c, from: a, to: b } : null;
+    const out = c >= n / 2 ? { n: sn / c, v: sv / c, lo: slo / c, hi: shi / c, from: a, to: b, r } : null;
     if (cache) cache.set(key, out);
     return out;
   }
   function binnedValueAt(panel, t, state, opts) {
-    if (!state.res) return null;
-    return binMean(panel, binIndex(t, state.res), state, opts);
+    const r = (opts && opts.r) || effRes(panel, state, opts); if (!r) return null;
+    return binMean(panel, binIndex(t, r), state, Object.assign({}, opts, { r }));
   }
 
   // Normalised series over [from (older), to (younger)] in display ages.
-  // The returned array carries its time step (Myr) in arr.step.
+  // The returned array carries its time step (Myr) in arr.step. Traits (step functions) are sampled every STEP.
   function series(panel, tFrom, tTo, state, opts) {
+    opts = opts || {};
     const out = [];
-    if (state.res) {
-      const k0 = binIndex(tFrom, state.res), k1 = binIndex(tTo, state.res);
-      for (let k = k0; k <= k1; k++) { const m = binMean(panel, k, state, opts); out.push(m ? m.n : null); }
-      out.step = state.res;
+    const r = opts.r || effRes(panel, state, opts);
+    if (r) {
+      const o = Object.assign({}, opts, { r });
+      const k0 = binIndex(tFrom, r), k1 = binIndex(tTo, r);
+      for (let k = k0; k <= k1; k++) { const m = binMean(panel, k, state, o); out.push(m ? m.n : null); }
+      out.step = r;
       return out;
     }
     for (let t = tFrom; t >= tTo - 1e-9; t -= STEP) {
@@ -204,10 +238,10 @@
     return nn >= Math.max(3, arr.length * 0.6);
   }
   // Minimum half-window so that a test has enough bins: trend 1.5 bins, lead 2, volatility 2, co-variation 2.5.
-  function minHalf(state, test) {
-    if (!state.res) return 0;
+  function minHalf(state, test, r) {
+    r = r || state.res; if (!r) return 0;
     const f = { trend: 1.5, lead: 2, volatility: 2, covary: 2.5, state: 0 }[test] || 0;
-    return f * state.res;
+    return f * r;
   }
   function diffs(arr) { const d = []; for (let i = 1; i < arr.length; i++) d.push(arr[i] === null || arr[i - 1] === null ? null : arr[i] - arr[i - 1]); return d; }
   function pearson(a, b) {
@@ -256,25 +290,26 @@
     }
     const P = id => panelsById[id];
     let s = null, detail = "";
-    const win = (w) => Math.max(W, w || 0, minHalf(state, pred.test));
-    const resTxt = state.res ? `, ${state.res} Myr bins` : "";
+    const win = (w, r) => Math.max(W, w || 0, minHalf(state, pred.test, r));
+    const rTxt = (r, held) => r ? `, ${r} Myr bins${held ? " (held at data limit)" : ""}` : "";
+    const held = (...ps) => ps.some(p => heldAt(p, state));
     try {
       if (pred.test === "state") {
-        const p = P(pred.panel), w = W;
+        const p = P(pred.panel), w = W, r = effRes(p, state, { variant: pred.variant }); const resTxt = rTxt(r, held(p));
         const arr = series(p, t + w, t - w, state, { variant: pred.variant, row: pred.row });
         if (!coverageOK(arr, 1)) { res.reason = `No ${p.short} data at this time`; return res; }
         const m = arr.filter(v => v !== null).reduce((a, b) => a + b, 0) / arr.filter(v => v !== null).length;
         s = tanh(pred.dir * (m - pred.thr) / (pred.scale || 0.15));
         detail = `normalised ${m.toFixed(2)} vs threshold ${pred.thr}${resTxt}`;
       } else if (pred.test === "trend") {
-        const p = P(pred.panel), w = win(pred.window);
+        const p = P(pred.panel), r = effRes(p, state, { variant: pred.variant }), w = win(pred.window, r); const resTxt = rTxt(r, held(p));
         const arr = series(p, t + w, t - w, state, { variant: pred.variant });
         if (!coverageOK(arr)) { res.reason = `No ${p.short} data around this time`; return res; }
         const sl = slope(arr);
         s = tanh(pred.dir * sl / (pred.scale || 0.12));
         detail = `slope ${sl >= 0 ? "+" : ""}${sl.toFixed(2)} per 10 Myr (normalised, ±${w} Myr${resTxt})`;
       } else if (pred.test === "lead") {
-        const L = win(pred.window);
+        const ra = effRes(P(pred.a), state), rb = effRes(P(pred.b), state), L = win(pred.window, Math.max(ra || 0, rb || 0)); const resTxt = rTxt(Math.max(ra || 0, rb || 0) || null, held(P(pred.a), P(pred.b)));
         const a = series(P(pred.a), t + L, t, state, { row: pred.arow });
         const b = series(P(pred.b), t, t - L, state, { row: pred.brow });
         if (!coverageOK(a) || !coverageOK(b)) { res.reason = `Missing data before or after this time`; return res; }
@@ -282,16 +317,16 @@
         s = Math.min(sa, sb);
         detail = `driver before: ${sa.toFixed(2)}, outcome after: ${sb.toFixed(2)} (${L} Myr each side${resTxt})`;
       } else if (pred.test === "covary") {
-        const L = win(pred.window);
-        const a = series(P(pred.a), t + L, t - L, state, {});
-        const b = series(P(pred.b), t + L, t - L, state, {});
+        const rc = Math.max(effRes(P(pred.a), state) || 0, effRes(P(pred.b), state) || 0) || null, L = win(pred.window, rc); const resTxt = rTxt(rc, held(P(pred.a), P(pred.b)));
+        const a = series(P(pred.a), t + L, t - L, state, { r: rc });
+        const b = series(P(pred.b), t + L, t - L, state, { r: rc });
         if (!coverageOK(a) || !coverageOK(b)) { res.reason = `Missing data in the window`; return res; }
         const r = state.covaryMode === "levels" ? pearson(a, b) : pearson(diffs(a), diffs(b));
         if (r === null) { res.reason = `One series is flat in the window`; return res; }
         s = pred.dir * r;
         detail = `r = ${r.toFixed(2)} (${state.covaryMode === "levels" ? "levels" : "first differences"}, ±${L} Myr${resTxt})`;
       } else if (pred.test === "volatility") {
-        const p = P(pred.panel), w = win(pred.window);
+        const p = P(pred.panel), r = effRes(p, state), w = win(pred.window, r); const resTxt = rTxt(r, held(p));
         const arr = series(p, t + w, t - w, state, {});
         if (!coverageOK(arr)) { res.reason = `No ${p.short} data around this time`; return res; }
         const sd = residualSD(arr);
@@ -414,10 +449,11 @@
   // Correlation between a driver and a response over a display range at bin width r.
   function rangeCorr(aId, bId, range, r, state) {
     const s2 = Object.assign({}, state, { res: r });
-    const a = series(panelsById[aId], range[0], range[1], s2, {}), b = series(panelsById[bId], range[0], range[1], s2, {});
+    const rc = Math.max(effRes(panelsById[aId], s2) || 0, effRes(panelsById[bId], s2) || 0) || null;
+    const a = series(panelsById[aId], range[0], range[1], s2, { r: rc }), b = series(panelsById[bId], range[0], range[1], s2, { r: rc });
     const nb = a.filter((v, i) => v !== null && b[i] !== null).length;
     const rr = state.covaryMode === "levels" ? pearson(a, b) : pearson(diffs(a), diffs(b));
-    return { r: rr, n: nb };
+    return { r: rr, n: nb, used: rc, held: r && rc > r };
   }
 
   // Net support of every hypothesis at time t for each bin width (null = continuous).
@@ -429,5 +465,5 @@
     });
   }
 
-  window.CL_ENGINE = { TIER_W, STEP, RESOLUTIONS, BIN_ORIGIN, binIndex, binBounds, binMean, binnedValueAt, roleUsage, dataSpacing, rangeCorr, supportByRes, minHalf, panelsById, toDisplay, toICS, defaultWindow, valueAt, variantOf, interp, normalise, traitLevel, tierAt, evalPred, evalHyp, evaluate, heatmap, sensitivity, dfiAt };
+  window.CL_ENGINE = { dataRes, effRes, heldAt, spacingOf, pearson, diffs, slope, series, TIER_W, STEP, RESOLUTIONS, BIN_ORIGIN, binIndex, binBounds, binMean, binnedValueAt, roleUsage, dataSpacing, rangeCorr, supportByRes, minHalf, panelsById, toDisplay, toICS, defaultWindow, valueAt, variantOf, interp, normalise, traitLevel, tierAt, evalPred, evalHyp, evaluate, heatmap, sensitivity, dfiAt };
 })();

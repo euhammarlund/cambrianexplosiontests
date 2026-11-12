@@ -78,12 +78,13 @@ window.CL_HYPS = [
   {
     id: "H6", name: "Ecosystem engineering", family: "Biotic interactions",
     summary: "Burrowing and filter feeding changed sediments and water chemistry (the agronomic revolution), which created new niches and fed back on nutrient and oxygen cycles.",
-    refs: ["manganobuatois2014", "buatois2018", "boyle2014", "erwin2011", "gougeon2025"],
+    refs: ["manganobuatois2014", "buatois2018", "boyle2014", "erwin2011", "gougeon2025", "bambach2007", "droserbambach2001"],
     preds: [
       { id: "H6a", kind: "pattern", test: "trend", panel: "ichno", dir: 1, window: 5, scale: 0.12, spec: 1, text: "Trace-fossil diversity or depth is rising" },
       { id: "H6b", kind: "link", test: "lead", a: "ichno", adir: 1, b: "richness", bdir: 1, window: 8, spec: 3, text: "Burrowing rises before body-fossil diversity" },
       { id: "H6c", kind: "pattern", test: "trait", panel: "traits_eco", row: "tiering", spec: 2, text: "Deep infaunal tiering is present" },
-      { id: "H6d", kind: "link", test: "covary", a: "ichno", b: "nutrients", dir: -1, window: 10, spec: 2, text: "More burrowing goes with lower productivity proxy (P retention in sediments, Boyle et al. 2014)" }
+      { id: "H6d", kind: "link", test: "covary", a: "ichno", b: "nutrients", dir: -1, window: 10, spec: 2, text: "More burrowing goes with lower productivity proxy (P retention in sediments, Boyle et al. 2014)" },
+      { id: "H6e", kind: "pattern", test: "trend", panel: "modes", dir: 1, window: 20, scale: 0.12, spec: 1, text: "Animals use more modes of life (Bambach ecospace counts)" }
     ]
   },
   {
@@ -151,11 +152,12 @@ window.CL_HYPS = [
   {
     id: "H12", name: "Seawater chemistry and biomineralisation", family: "Bottom-up environment",
     summary: "Changes in seawater Ca and Mg/Ca made it easier, or more necessary, to build carbonate skeletons, which then enabled new body plans and defences.",
-    refs: ["brennan2004", "porter2007", "cartwright2024", "petersgaines2012"],
+    refs: ["brennan2004", "porter2007", "cartwright2024", "petersgaines2012", "pruss2010", "prussclemente2011"],
     preds: [
       { id: "H12a", kind: "condition", test: "trend", panel: "chem", dir: -1, window: 8, scale: 0.12, spec: 2, text: "Mg/Ca is falling (Ca rising)" },
       { id: "H12b", kind: "link", test: "lead", a: "chem", adir: -1, b: "skeletal", bdir: 1, window: 8, spec: 3, text: "Seawater change comes before skeletal diversification" },
-      { id: "H12c", kind: "pattern", test: "trend", panel: "skeletal", dir: 1, window: 5, scale: 0.12, spec: 1, text: "Skeletal taxa are rising" }
+      { id: "H12c", kind: "pattern", test: "trend", panel: "skeletal", dir: 1, window: 5, scale: 0.12, spec: 1, text: "Skeletal taxa are rising" },
+      { id: "H12d", kind: "pattern", test: "trend", panel: "carbprod", dir: 1, window: 10, scale: 0.12, spec: 1, text: "Skeletons make a growing share of carbonate (Pruss data)" }
     ]
   },
   {
@@ -173,13 +175,13 @@ window.CL_HYPS = [
 // Role presets.
 window.CL_PRESETS = [
   { id: "bottomup", name: "Environment given, biology outcome", desc: "Physical and chemical panels are the givens. Fossil panels are the outcomes to explain. This tests bottom-up hypotheses.",
-    roles: { d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "outcome", ediacara: "outcome", traits_pred: "outcome", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "given", chem: "given", localredox: "given", globalredox: "given", co2: "given", o2: "given", dfi: "given" } },
+    roles: { carbprod: "outcome", modes: "outcome", d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "outcome", ediacara: "outcome", traits_pred: "outcome", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "given", chem: "given", localredox: "given", globalredox: "given", co2: "given", o2: "given", dfi: "given" } },
   { id: "biotic", name: "Biotic interactions", desc: "Early traits (predation, burrowing) are treated as givens, and later diversity is the outcome. This lets the biotic links be tested.",
-    roles: { d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "given", ediacara: "outcome", traits_pred: "given", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "outcome", chem: "given", localredox: "given", globalredox: "given", co2: "given", o2: "given", dfi: "given" } },
+    roles: { carbprod: "outcome", modes: "outcome", d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "given", ediacara: "outcome", traits_pred: "given", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "outcome", chem: "given", localredox: "given", globalredox: "given", co2: "given", o2: "given", dfi: "given" } },
   { id: "feedback", name: "Feedback (biology given)", desc: "Biology is given and the environment is the outcome. Use this to ask whether animals changed the oceans (for example bioturbation and nutrients).",
-    roles: { d13c: "outcome", richness: "given", skeletal: "given", ichno: "given", ediacara: "given", traits_pred: "given", traits_eco: "given", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "outcome", chem: "given", localredox: "outcome", globalredox: "outcome", co2: "outcome", o2: "outcome", dfi: "off" } },
+    roles: { carbprod: "given", modes: "given", d13c: "outcome", richness: "given", skeletal: "given", ichno: "given", ediacara: "given", traits_pred: "given", traits_eco: "given", sampling: "given", sealevel: "given", geography: "given", temp: "given", nutrients: "outcome", chem: "given", localredox: "outcome", globalredox: "outcome", co2: "outcome", o2: "outcome", dfi: "off" } },
   { id: "tiera", name: "Best-constrained data only", desc: "Like the bottom-up preset, but panels whose default tier is C or D are switched off. Shows what can be said with the firmest data alone.",
-    roles: { d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "outcome", ediacara: "outcome", traits_pred: "outcome", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "off", nutrients: "given", chem: "off", localredox: "given", globalredox: "off", co2: "off", o2: "off", dfi: "off" } }
+    roles: { carbprod: "outcome", modes: "outcome", d13c: "given", richness: "outcome", skeletal: "outcome", ichno: "outcome", ediacara: "outcome", traits_pred: "outcome", traits_eco: "outcome", sampling: "given", sealevel: "given", geography: "given", temp: "off", nutrients: "given", chem: "off", localredox: "given", globalredox: "off", co2: "off", o2: "off", dfi: "off" } }
 ];
 
 // Guided steps for students.
@@ -190,7 +192,7 @@ window.CL_GUIDE = [
   { title: "4. Ask the hypotheses", body: "Move to 521 Ma (start of Cambrian Stage 3). Each hypothesis card shows which predictions are supported (green), contradicted (red) or untestable (grey), and how much of the hypothesis could be tested (coverage).", action: { label: "Go to 521 Ma", t: 521, zoom: "ce" } },
   { title: "5. Compare two radiations", body: "Practical 3 asks: What fuelled the Cambrian explosion and the GOBE, and were the drivers the same? Pin the bar at 521 Ma, then move to 465 Ma (Darriwilian) and compare.", action: { label: "Pin 521, go to 465", pin: 521, t: 465, zoom: "all" } },
   { title: "6. Grade the parameters", body: "The importance chart shows how much the ranking changes if one panel is removed. A parameter that moves many scores is doing a lot of the work. Then switch a temperature or oxygen curve and see which conclusions survive.", action: { label: "Open the importance chart", focus: "importance" } },
-  { title: "7. Change the time resolution", body: "Diversity counted in long bins hides short pulses. Set the resolution to 10 Myr, then to 2.5 Myr (about the binning of Rasmussen et al. 2019). The ledger below the heatmap shows which links hold at every bin width. Slow drivers such as plate configuration tend to keep their link at coarse bins; fast drivers such as climate steps only show a link in short bins.", action: { label: "Use 10 Myr bins", res: 10, focus: "tempo" } }
+  { title: "7. Change the time resolution", body: "Diversity counted in long bins hides short pulses. Set the resolution to 10 Myr, then to 2.5 Myr (about the binning of Rasmussen et al. 2019), then to 0.5 Myr. Only curves built from high-resolution data (the digitised South China and China diversity curves) can follow you to 0.5 Myr; the others are held at the resolution of their data, and the panel label says so. The ledger below the heatmap shows which links hold at every bin width. Slow drivers such as plate configuration tend to keep their link at coarse bins; fast drivers such as climate steps only show a link in short bins.", action: { label: "Use 10 Myr bins", res: 10, focus: "tempo" } }
 ];
 
 window.CL_QUESTIONS = [

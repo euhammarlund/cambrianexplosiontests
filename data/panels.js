@@ -40,11 +40,27 @@ window.CL_PANELS = [
     kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Diversity can change within a few hundred kyr (extinctions) or over tens of Myr (accumulation)." }, defaultRole: "outcome",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 487, tier: "B" }, { from: 487, to: 440, tier: "A" }],
     tierReason: "Ordovician genus richness is estimated with sampling-standardised capture-recapture methods. Cambrian and Ediacaran counts are raw or partly standardised compilations.",
-    description: "Genus richness, origination intensity, and genus life expectancy. Rasmussen et al. 2019 describe a cascading trend of radiations that is paused by the Late Ordovician extinctions.",
+    description: "Richness through time. Four curves are now based on real data, digitised from published high-resolution analyses (Fan et al. 2020; Deng et al. 2021, 2023; Zhang et al. 2021). These are mainly Chinese sections, so they are regional. The global genus curve, origination and life expectancy are still schematic. Rasmussen et al. 2019 describe a cascading trend of radiations that is paused by the Late Ordovician extinctions.",
     caveat: "Raw counts follow rock volume and Lagerstätten. Compare with the sampling panel before trusting a rise.",
-    refs: ["rasmussen2019", "kroger2019", "na2015", "zhangshu2021", "paterson2019", "pbdb"],
+    refs: ["fan2020", "deng2021", "deng2023", "zhangsh2021", "rasmussen2019", "kroger2019", "na2015", "zhangshu2021", "paterson2019", "pbdb"],
     variants: [
-      { id: "genera", name: "Genus richness (schematic compilation)", unit: "genera", norm: [0, 1600], status: "schematic", refs: ["na2015", "zhangshu2021", "rasmussen2019"],
+      { id: "fan2020", name: "Species richness, China, CONOP (Fan et al. 2020, digitised Fig. 1A)", unit: "species", norm: [0, 550], status: "digitised", dataRes: 0.5, srcRes: "about 26 kyr in the published CONOP composite; digitised here at 0.5 Myr", scale: "Mainly Chinese sections (Geobiodiversity Database)", refs: ["fan2020"],
+        tiers: [{ from: 540, to: 487, tier: "B" }, { from: 487, to: 439, tier: "A" }],
+        note: "Real data: species richness from 11,000 species in about 3,000 sections, ordered by CONOP. The early Cambrian part rests on fewer sections.",
+        points: window.CL_DIG.fan2020 },
+      { id: "deng2021", name: "Species richness, South China, CONOP (Deng et al. 2021, digitised Fig. 4)", unit: "species", norm: [0, 400], status: "digitised", dataRes: 0.25, srcRes: "about 21 kyr in the published analysis; digitised here at 0.25 Myr", scale: "Regional (South China)", refs: ["deng2021"],
+        tiers: [{ from: 510, to: 487, tier: "B" }, { from: 487, to: 431, tier: "A" }],
+        note: "Real data, regional. Shows the GOBE as a stepwise rise from the Floian with a peak in the Darriwilian, and the two pulses of the Late Ordovician extinction.",
+        points: window.CL_DIG.deng2021 },
+      { id: "deng2023", name: "Species richness, middle to late Cambrian, South China (Deng et al. 2023, digitised Fig. 2A)", unit: "species", norm: [0, 120], status: "digitised", dataRes: 0.25, srcRes: "about 22 kyr in the published analysis; digitised here at 0.25 Myr", scale: "Regional (South China)", refs: ["deng2023"],
+        tiers: [{ from: 505, to: 479, tier: "B" }],
+        note: "Real data, regional. No Furongian biodiversity gap: two extinctions (Guzhangian to Paibian, about 45% loss; Jiangshanian, about 55% loss) and a recovery into the early Ordovician. The authors relate richness to redox change.",
+        points: window.CL_DIG.deng2023 },
+      { id: "zhang2021", name: "Trilobite species, South China (Zhang et al. 2021, digitised Fig. 4A)", unit: "species", norm: [0, 75], status: "digitised", dataRes: 0.5, srcRes: "about 60 kyr in the published composite, smoothed with a 0.3 Myr window; digitised here at 0.25 Myr and treated as 0.5 Myr", scale: "Regional (South China), one clade", refs: ["zhangsh2021"],
+        tiers: [{ from: 511, to: 489, tier: "B" }],
+        note: "Real data for trilobites only. Peak near 499 Ma and about 50% loss at the end of the Guzhangian.",
+        points: window.CL_DIG.zhang2021 },
+      { id: "genera", name: "Genus richness, global (schematic compilation)", unit: "genera", norm: [0, 1600], status: "schematic", refs: ["na2015", "zhangshu2021", "rasmussen2019"],
         points: [[575, 25, 15, 40], [560, 35, 20, 55], [550, 30, 15, 45], [545, 20, 10, 30], [539, 25, 15, 40], [533, 70, 40, 100], [529, 120, 80, 160], [524, 250, 180, 320], [518, 430, 330, 520], [514, 360, 280, 440], [512, 300, 230, 380], [508, 370, 290, 450], [500, 400, 320, 480], [494, 420, 340, 500], [487, 460, 380, 540], [478, 650, 550, 760], [470, 850, 730, 970], [465, 1100, 960, 1240], [460, 1300, 1150, 1450], [453, 1500, 1350, 1650], [447, 1550, 1400, 1700], [444, 1000, 850, 1150], [440, 1050, 900, 1200]] },
       { id: "origination", name: "Origination intensity (relative, schematic)", unit: "index", norm: [0, 1], status: "schematic", refs: ["kroger2019", "zhuravlevwood2018"],
         points: [[545, 0.3, 0.1, 0.5], [536, 0.6, 0.4, 0.8], [526, 0.8, 0.6, 1], [519, 1, 0.8, 1], [514, 0.4, 0.2, 0.6], [510, 0.3, 0.15, 0.5], [503, 0.5, 0.3, 0.7], [495, 0.6, 0.4, 0.8], [485, 0.6, 0.45, 0.75], [475, 0.7, 0.55, 0.85], [468, 0.8, 0.65, 0.95], [462, 0.9, 0.75, 1], [456, 0.6, 0.45, 0.75], [450, 0.5, 0.35, 0.65], [445, 0.2, 0.1, 0.35], [440, 0.4, 0.25, 0.55]] },
@@ -64,6 +80,19 @@ window.CL_PANELS = [
         points: [[551, 2, 1, 4], [546, 4, 2, 6], [541, 6, 3, 9], [538.5, 10, 6, 15], [535, 25, 15, 35], [531, 45, 30, 60], [529, 70, 50, 90], [525, 130, 100, 160], [521, 200, 160, 240], [518, 240, 200, 280], [515, 250, 210, 290], [513, 150, 110, 190], [510, 140, 100, 180]] },
       { id: "global", name: "Skeletal genera, global (schematic)", unit: "genera", norm: [0, 1400], status: "schematic", refs: ["zhangshu2021", "rasmussen2019"],
         points: [[551, 3, 1, 6], [541, 10, 5, 15], [535, 50, 30, 70], [529, 110, 80, 140], [521, 260, 200, 320], [515, 320, 260, 380], [512, 250, 190, 310], [505, 300, 240, 360], [495, 350, 280, 420], [487, 400, 330, 470], [475, 650, 550, 750], [465, 1000, 870, 1130], [455, 1300, 1150, 1450], [446, 1350, 1200, 1500], [444, 850, 720, 980], [440, 900, 770, 1030]] }
+    ]
+  },
+  {
+    id: "carbprod", name: "Skeletal share of carbonate production", short: "Skeletal carbonate", group: "Biological",
+    kind: "curve", dataType: "Observation", scale: "Regional (Laurentia)", tempo: { cls: "response", note: "Measured per stage or formation, so changes are resolved at about 5 to 10 Myr." }, defaultRole: "outcome",
+    tiers: [{ from: 520, to: 458, tier: "B" }],
+    tierReason: "Point counts of thousands of thin-section points from many Laurentian sections. Real data, but regional and averaged per stage.",
+    description: "Percentage of carbonate rock volume made by skeletons. Cambrian to Tremadocian carbonates are skeleton-poor (median about 3 to 5%). Skeletal input rises about four-fold by the Floian to Middle Ordovician (about 15 to 18%). Pruss et al. 2010 (Ibex area, Utah, and a Laurentian compilation) and Pruss and Clemente 2011 (western Newfoundland). Abundance does not rise smoothly with diversity.",
+    caveat: "Values are stage-level means read from the papers. Within a stage the line is only drawn between these means; it is not resolved.",
+    refs: ["pruss2010", "prussclemente2011", "prussknoll2017"],
+    variants: [
+      { id: "laurentia", name: "Skeletal % of carbonate, Laurentia (Pruss et al. 2010; Pruss & Clemente 2011)", unit: "% of carbonate", norm: [0, 25], status: "data summary", dataRes: 5, srcRes: "stage-level means (about 5 to 10 Myr per value)", refs: ["pruss2010", "prussclemente2011"],
+        points: [[515, 3, 1, 6], [505, 3, 1, 6], [497, 3, 1, 6], [490, 3.5, 1, 7], [484, 4, 1, 8], [475, 17, 10, 24], [469, 16, 10, 23], [462, 15, 9, 22]] }
     ]
   },
   {
@@ -114,7 +143,7 @@ window.CL_PANELS = [
     tiers: [{ from: 640, to: 529, tier: "C" }, { from: 529, to: 440, tier: "B" }],
     tierReason: "Ecological modes are inferred from morphology and traces. Ordovician ecospace is better documented than the Ediacaran.",
     description: "Lecture point: suspension feeders dominate Ordovician benthos, whereas detritus feeders dominate the Cambrian. 0 = absent, 0.5 = first or rare, 1 = established.",
-    refs: ["servais2009", "servais2010", "bambach2007", "manganobuatois2014", "rasmussenlecture"],
+    refs: ["servais2009", "servais2010", "bambach2007", "droserbambach2001", "bambach2002", "prussknoll2017", "manganobuatois2014", "rasmussenlecture"],
     rows: [
       { id: "grazing", name: "Grazing and deposit feeding", steps: [[555, 0.5], [535, 0.8], [525, 1]], refs: ["manganobuatois2014", "darroch2018"] },
       { id: "suspension", name: "Benthic suspension feeding", steps: [[550, 0.3], [529, 0.6], [480, 0.8], [465, 1]], refs: ["manganobuatois2014", "servais2010"] },
@@ -125,16 +154,33 @@ window.CL_PANELS = [
     ]
   },
   {
+    id: "modes", name: "Modes of life (ecospace use)", short: "Modes of life", group: "Biological",
+    kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "response", note: "Counted for a few broad intervals only, about 20 to 60 Myr apart." }, defaultRole: "outcome",
+    tiers: [{ from: 580, to: 541, tier: "C" }, { from: 541, to: 445, tier: "B" }],
+    tierReason: "Counts of occupied modes of life (tiering, motility, feeding) for broad intervals. Real compilation, very coarse in time.",
+    description: "Number of modes of life used by animals (Bambach et al. 2007; Bambachian megaguilds, Droser and Bambach 2001). Soft-part faunas: about 4 in the early Ediacaran, 12 in the late Ediacaran, 30 by the early to middle Cambrian. Skeletal faunas: about 2, then 19, then 30 by the Late Ordovician. Bambach et al. 2002 show that the proportions of functional groups set up in the early Paleozoic stayed stable for about 200 Myr.",
+    caveat: "Only four time points. The line between them is drawn, not measured.",
+    refs: ["bambach2007", "megaguilds", "droserbambach2001", "bambach2002"],
+    variants: [
+      { id: "soft", name: "Modes of life, soft-part faunas (after Bambach et al. 2007)", unit: "modes", norm: [0, 40], status: "data summary", dataRes: 20, srcRes: "three broad intervals (early Ediacaran, late Ediacaran, early to middle Cambrian)", refs: ["bambach2007", "megaguilds"],
+        points: [[575, 4, 2, 6], [550, 12, 9, 15], [510, 30, 26, 34]] },
+      { id: "skel", name: "Modes of life, skeletal faunas (after Bambach et al. 2007)", unit: "modes", norm: [0, 40], status: "data summary", dataRes: 20, srcRes: "four broad intervals (early and late Ediacaran, early to middle Cambrian, Late Ordovician)", refs: ["bambach2007", "megaguilds"],
+        points: [[575, 0, 0, 1], [550, 2, 0, 4], [510, 19, 15, 23], [450, 30, 26, 34]] }
+    ]
+  },
+  {
     id: "sampling", name: "Preservation and sampling", short: "Sampling", group: "Confounder",
     kind: "curve", dataType: "Observation", scale: "Global", tempo: { cls: "intermediate", note: "Rock volume changes with sequence-scale sea-level cycles, about 1 to 10 Myr." }, defaultRole: "given",
     tiers: [{ from: 640, to: 541, tier: "C" }, { from: 541, to: 440, tier: "B" }],
     tierReason: "Rock area and volume indices are quantitative but uneven between continents. Ediacaran sections are fewer.",
     description: "Marine rock volume (schematic after Bowyer et al. 2024 for 580 to 510 Ma, and Macrostrat-style compilations later). Lagerstätten are shown as ticks. A rise in fossils that follows a rise in rock record may be partly a sampling effect.",
-    refs: ["bowyer2024", "macrostrat", "petersgaines2012", "pbdb"],
+    refs: ["bowyer2024", "macrostrat", "petersgaines2012", "pbdb", "deng2021"],
     variants: [{
       id: "rock", name: "Marine rock record index (schematic)", unit: "index", norm: [0, 1], status: "schematic", refs: ["bowyer2024", "macrostrat"],
       points: [[640, 0.2, 0.1, 0.3], [600, 0.25, 0.15, 0.35], [580, 0.25, 0.15, 0.35], [566, 0.25, 0.15, 0.35], [552, 0.15, 0.08, 0.25], [549, 0.25, 0.15, 0.35], [545, 0.18, 0.1, 0.28], [542, 0.18, 0.1, 0.28], [535, 0.35, 0.25, 0.45], [529, 0.5, 0.4, 0.6], [528, 0.35, 0.25, 0.45], [520, 0.55, 0.45, 0.65], [512, 0.75, 0.65, 0.85], [505, 0.7, 0.6, 0.8], [495, 0.7, 0.6, 0.8], [485, 0.75, 0.65, 0.85], [470, 0.8, 0.7, 0.9], [460, 0.85, 0.75, 0.95], [450, 0.85, 0.75, 0.95], [445, 0.6, 0.5, 0.7], [440, 0.65, 0.55, 0.75]]
-    }]
+    }, { id: "deng2021samp", name: "Fossil sample count, South China (Deng et al. 2021, digitised Fig. 4)", unit: "samples", norm: [0, 4000], status: "digitised", dataRes: 0.5, srcRes: "digitised at 0.5 Myr from the published sample-size curve", scale: "Regional (South China)", refs: ["deng2021"], tiers: [{ from: 510, to: 431, tier: "A" }],
+      note: "How many fossil samples back the South China richness curve. Compare with Deng et al. 2021 richness to judge sampling effects.",
+      points: window.CL_DIG.deng2021samp }]
   },
   {
     id: "sealevel", name: "Sea level and flooded shelf area", short: "Sea level", group: "Physical",

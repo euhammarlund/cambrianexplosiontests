@@ -33,6 +33,7 @@
     const link = refLink(r);
     return `${esc(r.authors)} (${r.year}). ${esc(r.title)}. <em class="j">${esc(r.journal)}</em>.${link ? ` <a href="${esc(link)}" target="_blank" rel="noopener">${esc(r.doi ? "doi:" + r.doi : link)}</a>` : ""}`;
   }
+  function fmtAge(v) { return v == null ? "–" : String(+v.toFixed(2)); }
   function fmt(v) {
     if (v == null || isNaN(v)) return "–";
     const a = Math.abs(v);
@@ -60,7 +61,21 @@
     return `rgb(${mix(neu[0], tgt[0], f)},${mix(neu[1], tgt[1], f)},${mix(neu[2], tgt[2], f)})`;
   }
   function invalidate() { state.heatCache = null; state.binCache = new Map(); }
-  function resLabel(r) { return r ? `${r} Myr bins` : "Continuous"; }
+  function resLabel(r) { return r ? `${r} Myr bins` : "Native (each curve at its data resolution)"; }
+  // Resolution status of a panel: what the bins rest on.
+  function resInfo(p) {
+    if (p.kind !== "curve" && p.kind !== "derived") return null;
+    const v = p.kind === "derived" ? p.variants[0] : E.variantOf(p, state);
+    const d = E.dataRes(p, state), r = E.effRes(p, state), held = E.heldAt(p, state);
+    const sketch = p.kind === "derived" || !v.status || v.status === "schematic";
+    let cls, txt, tip;
+    if (held) { cls = "held"; txt = `held at ${fmt(d)} Myr (data limit)`; tip = `You asked for ${state.res} Myr bins, but this curve only has information about every ${fmt(d)} Myr. Finer bins would be a mathematical division of a drawn line, so the panel stays at ${fmt(d)} Myr.`; }
+    else if (sketch) { cls = "sketch"; txt = `${fmt(r)} Myr bins, schematic`; tip = `Schematic curve: control points about ${fmt(d)} Myr apart. The bins follow these points; they are not measurements at this resolution.${v.srcRes ? " " + v.srcRes + "." : ""}`; }
+    else { cls = "data"; txt = `${fmt(r)} Myr bins, real data`; tip = `Bins rest on data: ${v.srcRes || "values from the source"}.`; }
+    return { cls, txt, tip, d, r };
+  }
+  function resTag(p) { const i = resInfo(p); return i ? `<span class="res-tag ${i.cls}" title="${esc(i.tip)}">${esc(i.txt)}</span>` : ""; }
+  function nHonour(r) { const cs = P.filter(p => p.kind === "curve"); return { n: cs.filter(p => E.dataRes(p, state) <= r + 1e-9).length, of: cs.length }; }
   // Older and younger edge of the shaded band around the bar: the bin in use, or the test window.
   function bandRange() {
     if (state.res) { const b = E.binBounds(E.binIndex(state.t, state.res), state.res); return b; }
@@ -90,8 +105,8 @@
       <span class="tb-group"><span class="tb-lbl">Time bar</span><input type="number" id="t-in" class="num" step="0.5" min="440" max="640" value="${state.t}" aria-label="Time bar position in Ma"> Ma</span>
       <span class="tb-group"><span class="tb-lbl">View</span><span class="seg" role="group" aria-label="Visible time range">${T.zooms.map(z => `<button data-zoom="${z.id}" aria-pressed="${state.zoomId === z.id}" title="${z.range[0]} to ${z.range[1]} Ma">${z.name}</button>`).join("")}</span>
         ${full ? `<label>from <input type="number" id="z0" class="num" value="${state.zoom[0]}" step="5"></label><label>to <input type="number" id="z1" class="num" value="${state.zoom[1]}" step="5"> Ma</label>` : ""}</span>
-      <span class="tb-group"><span class="tb-lbl">Resolution</span><select id="res-sel" aria-label="Time resolution"><option value="" ${!state.res ? "selected" : ""}>Continuous (curves as drawn)</option>${E.RESOLUTIONS.map(r => `<option value="${r}" ${state.res === r ? "selected" : ""}>${r} Myr bins</option>`).join("")}</select></span>
-      <span class="tb-group"><span class="tb-lbl">Roles</span><select id="preset" aria-label="Role preset">${window.CL_PRESETS.map(p => `<option value="${p.id}" ${p.id === state.preset ? "selected" : ""}>${esc(p.name)}</option>`).join("")}${state.preset === "custom" ? `<option value="custom" selected>Custom (set panel by panel)</option>` : ""}</select></span>
+      <span class="tb-group tb-roles"><label class="tb-lbl" for="preset">Roles: what is cause, what is response</label><select id="preset" aria-label="Roles: which panels are causes (Given) and which are responses (Outcome)">${window.CL_PRESETS.map(p => `<option value="${p.id}" ${p.id === state.preset ? "selected" : ""}>${esc(p.name)}</option>`).join("")}${state.preset === "custom" ? `<option value="custom" selected>Custom (set panel by panel)</option>` : ""}</select></span>
+      <span class="tb-group"><span class="tb-lbl">Resolution</span><select id="res-sel" aria-label="Time resolution"><option value="" ${!state.res ? "selected" : ""}>Native: data resolution</option>${E.RESOLUTIONS.map(r => { const h = nHonour(r); return `<option value="${r}" ${state.res === r ? "selected" : ""} title="${h.n} of ${h.of} curves have data this fine; the rest are held at their data limit">${r} Myr (${h.n} of ${h.of} curves)</option>`; }).join("")}</select></span>
       <span class="tb-group"><span class="tb-lbl">Age model</span><select id="age-model" aria-label="Age model">${T.ageModels.map(m => `<option value="${m.id}" ${m.id === state.ageModel ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></span>
       <button class="btn" id="pin-btn">${state.pin != null ? `Unpin ${state.pin} Ma` : "Pin bar for comparison"}</button>
       <span class="spacer"></span>
@@ -101,8 +116,8 @@
       ${state.showHelp ? `<div class="tb-help">
         <div><b>Time bar</b> is the age you ask questions about. Drag the red line on any plot, click a plot, or type an age. Moving the bar never changes what is drawn.</div>
         <div><b>View</b> sets which stretch of time is drawn. The four buttons are fixed ranges. ${full ? "The from and to boxes set any range you like." : "In Full mode you can also type any range."} If the bar falls outside the new view, it moves to the nearest edge.</div>
-        <div><b>Resolution</b> averages every curve into bins of equal length (1 to 20 Myr) before the hypotheses are tested. Continuous uses the curves as drawn. See the time-resolution ledger below the heatmap.</div>
-        <div><b>Roles</b> decide which panels are taken as given conditions or causes, and which are outcomes to explain. ${full ? "You can also change single panels with the Given, Outcome and Off buttons." : "In Guided mode roles come only from these presets."}</div>
+        <div><b>Resolution</b> averages every curve into bins before the hypotheses are tested. A curve is never binned finer than its data: if you ask for 1 Myr and a curve only has a value every 10 Myr, that panel is held at 10 Myr and its label turns amber. Native uses each curve at its own data resolution. The numbers in the menu say how many curves really have data that fine. See the time-resolution ledger below the heatmap.</div>
+        <div><b>Roles (most important control)</b> decide which panels are taken as given conditions or causes, and which are outcomes to explain. ${full ? "You can also change single panels with the Given, Outcome and Off buttons." : "In Guided mode roles come only from these presets."}</div>
         <div><b>Age model</b> switches between the ICS age of the Ediacaran–Cambrian boundary (538.8 Ma) and a younger boundary of about 535.5 Ma.</div>
         <div><b>Pin</b> keeps a dashed line at the current age so you can compare two ages in the sidebar.</div>
       </div>` : ""}`;
@@ -112,7 +127,7 @@
     $$("[data-zoom]", tb).forEach(b => b.addEventListener("click", () => setZoom(b.dataset.zoom)));
     $("#age-model").addEventListener("change", e => { state.ageModel = e.target.value; invalidate(); renderAll(); });
     $("#preset").addEventListener("change", e => applyPreset(e.target.value));
-    $("#pin-btn").addEventListener("click", () => { state.pin = state.pin != null ? null : state.t; renderToolbar(); renderStack(); renderHeat(); renderSide(); });
+    $("#pin-btn").addEventListener("click", () => { state.pin = state.pin != null ? null : state.t; LOG("pin", { t: state.pin }); renderToolbar(); renderStack(); renderHeat(); renderSide(); });
     if (full) {
       const zc = () => { const a = parseFloat($("#z0").value), b = parseFloat($("#z1").value); if (a > b + 5) { state.zoom = [Math.min(640, a), Math.max(440, b)]; state.zoomId = "custom"; state.t = clampT(state.t); invalidate(); renderAll(); } };
       $("#z0").addEventListener("change", zc); $("#z1").addEventListener("change", zc);
@@ -121,17 +136,21 @@
     $("#exp-json").addEventListener("click", exportJSON);
   }
 
+  const LOG = (type, d) => { if (window.EV_LOG) window.EV_LOG.add(3, type, d); };
   function setRes(r) {
+    LOG("resolution", { res: r });
     state.res = r; invalidate(); renderToolbar(); renderStack(); renderHeat(); renderSide(); renderTempo();
   }
   function setZoom(id) {
     const z = T.zooms.find(x => x.id === id); if (!z) return;
+    LOG("view", { id, range: z.range });
     state.zoom = z.range.slice(); state.zoomId = id; state.t = clampT(state.t);
     invalidate(); renderToolbar(); renderStack(); renderHeat(); renderSide(); renderTempo();
   }
   function applyPreset(id) {
     const p = window.CL_PRESETS.find(x => x.id === id); if (!p) return;
     state.preset = id; state.roles = Object.assign({}, p.roles);
+    LOG("preset", { id, name: p.name });
     invalidate(); renderToolbar(); renderStack(); renderHeat(); renderSide(); renderTempo();
   }
   function setT(t, light) {
@@ -141,13 +160,14 @@
     updateBar();
     renderSide();
     clearTimeout(tempoT); tempoT = setTimeout(renderTempo, 180);
+    clearTimeout(barLogT); barLogT = setTimeout(() => LOG("bar", { t: state.t }), 1500);
   }
-  let tempoT = null;
+  let tempoT = null, barLogT = null;
 
   // ---------- guide ----------
   function renderGuide() {
     const g = $("#guide");
-    if (state.mode !== "guided") { g.innerHTML = ""; return; }
+    if (state.mode !== "guided") { g.innerHTML = state.flash ? `<div class="guide"><div><p class="flash">${esc(state.flash)}</p></div><div class="guide-nav"><button class="btn" id="g-x">Close</button></div></div>` : ""; const x = $("#g-x"); if (x) x.addEventListener("click", () => { state.flash = null; renderGuide(); }); return; }
     const steps = window.CL_GUIDE, s = steps[state.guideStep];
     g.innerHTML = `<div class="guide">
       <div><h3>${esc(s.title)}</h3><p>${esc(s.body)}</p>
@@ -181,7 +201,7 @@
       <tr><td>Roles (Given, Outcome, Off)</td><td>Only the four presets; single panels are locked</td><td>Presets plus panel-by-panel buttons</td></tr>
       <tr><td>Curve choice</td><td>Open: compare temperature, anoxia, O2 and CO2 curves</td><td>Open</td></tr>
       <tr><td>View</td><td>Four fixed ranges</td><td>Fixed ranges or any from–to range</td></tr>
-      <tr><td>Time resolution</td><td>Continuous or 1 to 20 Myr bins</td><td>Same</td></tr>
+      <tr><td>Time resolution</td><td>Native (data resolution) or 0.25 to 20 Myr bins, never finer than the data</td><td>Same</td></tr>
       <tr><td>Hypothesis weights</td><td>All equal (1.0), all included</td><td>Sliders from 0 to 2, include or exclude</td></tr>
       <tr><td>Test window</td><td>Automatic, set by age uncertainty</td><td>Manual override up to ±10 Myr</td></tr>
       <tr><td>Co-variation test</td><td>First differences (removes shared long-term trends)</td><td>First differences or raw levels</td></tr>
@@ -229,21 +249,26 @@
       const segs = []; let cur = [];
       S.forEach(s => { if (s.v) cur.push(s); else if (cur.length) { segs.push(cur); cur = []; } });
       if (cur.length) segs.push(cur);
-      const binned = !!state.res;
+      const rr = E.effRes(p, state), binned = !!rr;
       segs.forEach(seg => {
         const top = seg.map(s => `${xOf(s.t).toFixed(1)},${y(s.v.hi).toFixed(1)}`);
         const bot = seg.slice().reverse().map(s => `${xOf(s.t).toFixed(1)},${y(s.v.lo).toFixed(1)}`);
-        body += `<polygon class="env${binned ? " faint" : ""}" points="${top.concat(bot).join(" ")}"/>`;
-        body += `<polyline class="curve${binned ? " faint" : ""}" points="${seg.map(s => `${xOf(s.t).toFixed(1)},${y(s.v.v).toFixed(1)}`).join(" ")}"/>`;
+        body += `<polygon class="env faint" points="${top.concat(bot).join(" ")}"/>`;
+        body += `<polyline class="curve drawn" points="${seg.map(s => `${xOf(s.t).toFixed(1)},${y(s.v.v).toFixed(1)}`).join(" ")}"><title>Line drawn between the entered points; not data</title></polyline>`;
       });
       if (binned) {
-        const k0 = E.binIndex(state.zoom[0], state.res), k1 = E.binIndex(state.zoom[1] + 1e-6, state.res);
+        const k0 = E.binIndex(state.zoom[0], rr), k1 = E.binIndex(state.zoom[1] + 1e-6, rr);
         for (let k = k0; k <= k1; k++) {
-          const m = E.binMean(p, k, state); if (!m) continue;
+          const m = E.binMean(p, k, state, { r: rr }); if (!m) continue;
           const xa = Math.max(0, xOf(m.from)), xb = Math.min(plotW, xOf(m.to)); if (xb <= xa) continue;
           body += `<rect class="bin-env" x="${xa.toFixed(1)}" y="${y(m.hi).toFixed(1)}" width="${(xb - xa).toFixed(1)}" height="${Math.max(1, y(m.lo) - y(m.hi)).toFixed(1)}"/>`;
           body += `<line class="bin-line" x1="${xa.toFixed(1)}" x2="${xb.toFixed(1)}" y1="${y(m.v).toFixed(1)}" y2="${y(m.v).toFixed(1)}"><title>${m.from}–${m.to} Ma bin mean: ${fmtVal(m.v, variant)} ${esc(variant.unit)}</title></line>`;
         }
+      }
+      // entered points (sources), only when they are not too dense to read
+      if (p.kind === "curve") {
+        const pts = variant.points.map(q => ({ t: E.toDisplay(q[0], state.ageModel), v: q[1] })).filter(q => q.t <= state.zoom[0] && q.t >= state.zoom[1]);
+        if (pts.length && pts.length <= 70) pts.forEach(q => { body += `<circle class="dpt" cx="${xOf(q.t).toFixed(1)}" cy="${y(q.v).toFixed(1)}" r="2.2"><title>Entered value ${fmtVal(q.v, variant)} ${esc(variant.unit)} at ${q.t} Ma</title></circle>`; });
       }
       // sites for local redox
       if (p.sites) p.sites.forEach(st => {
@@ -342,8 +367,9 @@
     const narrow = window.innerWidth <= 760;
     const labelw = narrow ? 0 : 168, metaw = narrow ? 0 : 252;
     plotW = Math.max(260, meas - labelw - metaw - 2);
-    let head = `<div class="stack-head"><div>Parameter, from more to less constrained</div><div>Time (Ma, ${esc(T.chart)}), older on the left${state.res ? ` · ${state.res} Myr bins` : ""}</div><div>At the bar · confidence · role · data</div></div>
-      <div class="role-legend"><span class="rl given">Given</span> taken as a condition or possible cause <span class="rl outcome">Outcome</span> the response the question tries to explain <span class="rl off">Off</span> left out. Open a panel's data link to see which predictions each role makes testable.</div>`;
+    let head = `<div class="stack-head"><div>Parameter, from more to less constrained</div><div>Time (Ma, ${esc(T.chart)}), older on the left · ${state.res ? `${state.res} Myr bins where the data allow` : "native data resolution"}</div><div>At the bar · confidence · role · data</div></div>
+      <div class="role-legend"><span class="rl given">Given</span> taken as a condition or possible cause <span class="rl outcome">Outcome</span> the response the question tries to explain <span class="rl off">Off</span> left out. Open a panel's data link to see which predictions each role makes testable.</div>
+      <div class="res-legend"><b>Time resolution:</b> <span class="res-tag data">real data</span> bins rest on measured or digitised values at that spacing <span class="res-tag sketch">schematic</span> bins follow the control points of a simplified curve <span class="res-tag held">held at data limit</span> you asked for finer bins than the data, so the panel keeps its data resolution. Step lines are bin means; the thin dashed line only joins the points and is not data. Dots mark the values entered from the sources.</div>`;
     let html = "";
     const legend = head.slice(head.indexOf('<div class="role-legend">')); head = head.slice(0, head.indexOf('<div class="role-legend">')); html += legend;
     P.forEach(p => {
@@ -353,7 +379,7 @@
       const variantSel = p.variants && p.variants.length > 1 ? `<select data-variant="${p.id}" aria-label="Curve for ${esc(p.short)}">${p.variants.map(v => `<option value="${v.id}" ${state.variants[p.id] === v.id ? "selected" : ""} title="${esc(v.name)}">${esc(v.name.replace(/\s*\([^)]*\)\s*$/, ""))}</option>`).join("")}</select>` : "";
       const tempo = p.tempo ? `<span class="tempo-tag ${p.tempo.cls}" title="${esc(p.tempo.note)}">${esc(TEMPO_LBL[p.tempo.cls])}</span>` : "";
       const row = `<div class="panel ${p.testable !== false && role === "off" ? "off" : ""}" data-panel="${p.id}">
-        <div class="p-label"><span class="nm">${esc(p.name)}</span><span class="ty">${esc(p.group)} · ${esc(p.dataType)} · ${esc(p.scale)}</span>${tempo}</div>
+        <div class="p-label"><span class="nm">${esc(p.name)}</span><span class="ty">${esc(p.group)} · ${esc(p.dataType)} · ${esc((p.kind === "curve" && E.variantOf(p, state).scale) || p.scale)}</span>${tempo}${resTag(p)}</div>
         <div class="p-plot" data-plot tabindex="0" aria-label="Timeline for ${esc(p.short)}. Use arrow keys to move the bar.">${svg}</div>
         <div class="p-meta">
           <div class="meta-top"><span class="val num" data-val="${p.id}"></span><span class="tier" data-tier="${p.id}" title="${esc(p.tierReason)}"></span></div>
@@ -369,9 +395,9 @@
     [sk, st].forEach(root => {
       $$("[data-role]", root).forEach(b => b.addEventListener("click", () => {
         if (state.mode === "guided") { state.flash = "In Guided mode, roles are set with the Roles presets in the toolbar. Switch to Full mode to change single panels."; renderGuide(); toast(state.flash); return; }
-        state.roles[b.dataset.pid] = b.dataset.role; state.preset = "custom"; invalidate(); renderToolbar(); renderStack(); renderHeat(); renderSide(); renderTempo();
+        state.roles[b.dataset.pid] = b.dataset.role; state.preset = "custom"; LOG("role", { panel: b.dataset.pid, role: b.dataset.role }); invalidate(); renderToolbar(); renderStack(); renderHeat(); renderSide(); renderTempo();
       }));
-      $$("[data-variant]", root).forEach(s => s.addEventListener("change", () => { state.variants[s.dataset.variant] = s.value; invalidate(); renderStack(); renderHeat(); renderSide(); renderTempo(); }));
+      $$("[data-variant]", root).forEach(s => s.addEventListener("change", () => { state.variants[s.dataset.variant] = s.value; { const pp = E.panelsById[s.dataset.variant]; const vv = pp.variants.find(x => x.id === s.value); LOG("curve", { panel: pp.id, id: s.value, name: `${pp.short}: ${vv ? vv.name : s.value}` }); } invalidate(); renderStack(); renderHeat(); renderSide(); renderTempo(); }));
       $$("[data-drawer]", root).forEach(b => b.addEventListener("click", () => openDrawer(b.dataset.drawer)));
       $$("[data-plot]", root).forEach(attachDrag);
     });
@@ -427,11 +453,9 @@
         el.innerHTML = `${pres} of ${p.rows.length} established<br><span class="rng">${first} first or rare</span>`;
       } else {
         const variant = p.kind === "derived" ? p.variants[0] : E.variantOf(p, state);
-        if (state.res) {
+        if (true) {
           const m = E.binnedValueAt(p, state.t, state);
-          const sp = E.dataSpacing(p, state);
-          const fine = sp && sp > state.res * 1.5 ? `<br><span class="rng warn-t" title="The selected curve has control points about ${fmt(sp)} Myr apart, so bins of ${state.res} Myr show interpolation rather than data.">bins finer than the curve (points ~${fmt(sp)} Myr apart)</span>` : "";
-          el.innerHTML = m ? `${fmtVal(m.v, variant)} <span class="rng">${esc(variant.unit)}</span><br><span class="rng">mean of bin ${m.from}–${m.to} Ma</span>${fine}` : `<span class="rng">no data in this bin</span>`;
+          el.innerHTML = m ? `${fmtVal(m.v, variant)} <span class="rng">${esc(variant.unit)}</span><br><span class="rng">mean of ${fmt(m.r)} Myr bin, ${fmtAge(m.from)}–${fmtAge(m.to)} Ma</span> ${trendArrow(p)}` : `<span class="rng">no data in this bin</span>`;
         } else {
           const v = E.valueAt(p, ics, state);
           el.innerHTML = v ? `${fmtVal(v.v, variant)} <span class="rng">${esc(variant.unit)}</span><br><span class="rng">range ${fmtVal(v.lo, variant)} to ${fmtVal(v.hi, variant)}</span> ${trendArrow(p)}` : `<span class="rng">no data at this time</span>`;
@@ -476,7 +500,7 @@
     const evNow = T.events.filter(e => ics <= e.from + W && ics >= e.to - W);
     let html = `<div class="card"><div class="now-age num">${state.t.toFixed(1)} Ma</div>
       <p class="sub">${esc(per && per.name !== stg.name ? per.name + ", " : "")}${esc(stg.name)} (${esc(T.chart)}). Evaluation window ±${W} Myr ${state.windowOverride ? "(set manually)" : "(age uncertainty)"}.${state.ageModel !== "ab" ? ` ICS-equivalent age ${ics.toFixed(1)} Ma.` : ""}</p>
-      <p class="sub">Resolution: ${state.res ? `${state.res} Myr bins. The bar is in the bin ${E.binBounds(E.binIndex(state.t, state.res), state.res).join("–")} Ma. Trends need at least ${E.minHalf(state, "trend") * 2} Myr and co-variation at least ${E.minHalf(state, "covary") * 2} Myr of record around the bar.` : "continuous (curves as drawn)."}</p>
+      <p class="sub">Resolution: ${state.res ? `${state.res} Myr bins requested. ${nHonour(state.res).n} of ${nHonour(state.res).of} curves have data this fine; the others are held at their own data resolution (amber labels).` : "native. Each curve is binned at the resolution of its own data, from 0.25 Myr (digitised diversity curves) to 20 Myr (sparse schematic curves)."} A test that compares two curves uses the coarser of the two.</p>
       ${evNow.length ? `<p class="sub">Near: ${esc(evNow.map(e => e.name).join(", "))}</p>` : ""}</div>`;
 
     html += `<div class="card"><h3>Hypotheses at this time</h3><p class="sub">Ranked by net support. Click a hypothesis to see each prediction.</p><ol class="hyp-list">`;
@@ -554,7 +578,7 @@
     const sup = E.supportByRes(state.t, state, widths);
     const hyps = H.filter(h => !state.hidden[h.id]);
     const cell = (v, cur) => `<td class="n${cur ? " cur" : ""}" style="background:${netColor(v)}">${(v >= 0 ? "+" : "") + v.toFixed(2)}</td>`;
-    let tA = `<table class="tempo-t"><thead><tr><th>Hypothesis</th>${widths.map(r => `<th><button class="lnk" data-setres="${r || ""}" aria-pressed="${state.res === r}">${r ? r + " Myr" : "Cont."}</button></th>`).join("")}</tr></thead><tbody>`;
+    let tA = `<table class="tempo-t"><thead><tr><th>Hypothesis</th>${widths.map(r => `<th><button class="lnk" data-setres="${r || ""}" aria-pressed="${state.res === r}">${r ? r + " Myr" : "Native"}</button></th>`).join("")}</tr></thead><tbody>`;
     hyps.forEach(h => { tA += `<tr><td>${h.id} ${esc(h.name)}</td>${sup.map(x => cell(x.net[h.id], state.res === x.r)).join("")}</tr>`; });
     tA += `</tbody></table>`;
     // driver x resolution correlation with the chosen response over the view
@@ -568,20 +592,21 @@
       tB += `<tr><td>${esc(d.short)}</td><td><span class="tempo-tag ${d.tempo.cls}">${esc(TEMPO_LBL[d.tempo.cls])}</span></td>`;
       E.RESOLUTIONS.forEach(r => {
         const c = E.rangeCorr(d.id, state.tempoResp, state.zoom, r, state);
-        if (c.r == null || c.n < 5) tB += `<td class="n na" title="Too few bins with data (${c.n})">–</td>`;
+        if (c.held) tB += `<td class="n na held" title="The data of one of the two curves are coarser than ${r} Myr (held at ${c.used} Myr), so this column would only repeat a mathematical division">held</td>`;
+        else if (c.r == null || c.n < 5) tB += `<td class="n na" title="Too few bins with data (${c.n})">–</td>`;
         else tB += `<td class="n${c.n < 8 ? " few" : ""}${state.res === r ? " cur" : ""}" style="background:${netColor(c.r)}" title="${c.n} bins with data${c.n < 8 ? "; few bins, treat with care" : ""}">${(c.r >= 0 ? "+" : "") + c.r.toFixed(2)}</td>`;
       });
       tB += `</tr>`;
     });
     tB += `</tbody></table>`;
     const hr = ["fan2020", "deng2021", "deng2023", "zhangsh2021"].map(id => { const r = refById[id]; const l = r && refLink(r); return l ? `<a href="${esc(l)}" target="_blank" rel="noopener">${esc(shortRef(id))}</a>` : esc(shortRef(id)); }).join(", ");
-    el.innerHTML = `<div class="heat-head"><div><h3>Time-resolution ledger</h3><p>Every curve is averaged into bins of equal length before the hypotheses are tested. Rasmussen et al. (2019) and Kröger et al. (2019) refined the binning to about 2.5 Myr on average; CONOP composites from South China reach about 20 to 30 kyr. Coarse bins favour slow, first-order drivers such as plate configuration; fast drivers such as climate steps or anoxic pulses can only show a link when the bins are shorter than the process.</p></div></div>
+    el.innerHTML = `<div class="heat-head"><div><h3>Time-resolution ledger</h3><p>Every curve is averaged into bins before the hypotheses are tested, and no curve is binned finer than its data. Rasmussen et al. (2019) and Kröger et al. (2019) refined the binning to about 2.5 Myr on average; CONOP composites from South China reach about 20 to 30 kyr. Coarse bins favour slow, first-order drivers such as plate configuration; fast drivers such as climate steps or anoxic pulses can only show a link when the bins are shorter than the process.</p></div></div>
       <div class="tempo-grid">
         <div><h4>Support at ${state.t.toFixed(1)} Ma for each bin width</h4><p class="sub">Net support with the current roles and curves. Click a column to use that resolution on the timeline.</p>${tA}</div>
         <div><h4>Co-variation with <select id="tempo-resp" aria-label="Response parameter">${respOpts.map(p => `<option value="${p.id}" ${p.id === state.tempoResp ? "selected" : ""}>${esc(p.short)}</option>`).join("")}</select> over ${state.zoom[0]}–${state.zoom[1]} Ma</h4>
           <p class="sub">Pearson r of ${state.covaryMode === "levels" ? "bin means" : "first differences of bin means"} across the whole view (not only at the bar). Pale italic cells rest on fewer than 8 bins. Change the view to focus on one interval.</p>${tB}</div>
       </div>
-      <p class="sub tempo-note">The curves are still schematic, so these numbers show how the method works, not a result. High-resolution diversity data to be added: ${hr}.</p>`;
+      <p class="sub tempo-note">Cells marked "held" would need data finer than one of the two curves has, so they are not computed. The diversity panel now includes real high-resolution curves digitised from ${hr}; choose one in the Diversity panel to test fast drivers. Most environmental curves are still schematic, so many short-bin results are limited by the driver, not by diversity.</p>`;
     $$("[data-setres]", el).forEach(b => b.addEventListener("click", () => setRes(b.dataset.setres ? parseFloat(b.dataset.setres) : null)));
     $("#tempo-resp").addEventListener("change", e => { state.tempoResp = e.target.value; renderTempo(); });
   }
@@ -595,7 +620,8 @@
     let html = `<h2>${esc(p.name)}</h2><p class="sub" style="color:var(--muted)">${esc(p.group)} · ${esc(p.dataType)} · ${esc(p.scale)}</p>
       <p>${esc(p.description)}</p>${p.caveat ? `<div class="warn">${esc(p.caveat)}</div>` : ""}
       ${roleSection(p)}
-      ${p.tempo ? `<h4>Tempo of the process</h4><p><span class="tempo-tag ${p.tempo.cls}">${esc(TEMPO_LBL[p.tempo.cls])}</span> ${esc(p.tempo.note)}${E.dataSpacing(p, state) ? ` The selected curve has control points about ${fmt(E.dataSpacing(p, state))} Myr apart (median), so bins narrower than that show interpolation, not data.` : ""}</p>` : ""}
+      ${p.tempo ? `<h4>Tempo of the process</h4><p><span class="tempo-tag ${p.tempo.cls}">${esc(TEMPO_LBL[p.tempo.cls])}</span> ${esc(p.tempo.note)}</p>` : ""}
+      ${resInfo(p) ? `<h4>Time resolution of the data</h4><p><span class="res-tag ${resInfo(p).cls}">${esc(resInfo(p).txt)}</span> ${esc(resInfo(p).tip)} The app never bins this curve finer than ${fmt(resInfo(p).d)} Myr.</p>` : ""}
       <h4>Confidence</h4><p>${esc(p.tierReason)}</p>
       <table class="pts"><thead><tr><th>Interval (Ma, ICS)</th><th>Tier</th></tr></thead><tbody>${((v && v.tiers) || p.tiers).map(x => `<tr><td>${x.from} to ${x.to}</td><td><span class="tier ${x.tier}">${x.tier}</span></td></tr>`).join("")}</tbody></table>`;
     if (p.variants && p.variants.length && p.kind !== "framework") {
@@ -603,7 +629,8 @@
     }
     if (p.rows) html += `<h4>Trait rows (first evidence, Ma)</h4><table class="pts"><thead><tr><th>Trait</th><th>Steps (age: level)</th><th>Sources</th></tr></thead><tbody>${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td>${r.steps.map(s => `${s[0]}: ${s[1]}`).join(", ")}</td><td>${r.refs.map(shortRef).map(esc).join("; ")}</td></tr>`).join("")}</tbody></table>`;
     if (p.sites) html += `<h4>Site records</h4><table class="pts"><thead><tr><th>Site</th><th>Ma</th><th>Note</th></tr></thead><tbody>${p.sites.map(s => `<tr><td>${esc(s.name)}</td><td>${s.from}–${s.to}</td><td style="text-align:left">${esc(s.note)} (${esc(shortRef(s.ref))})</td></tr>`).join("")}</tbody></table>`;
-    if (v && v.points.length) html += `<h4>Control points of the selected curve (schematic)</h4><table class="pts"><thead><tr><th>Age (Ma)</th><th>Value</th><th>Low</th><th>High</th></tr></thead><tbody>${v.points.map(q => `<tr><td>${q[0]}</td><td>${fmtVal(q[1], v)}</td><td>${fmtVal(q[2], v)}</td><td>${fmtVal(q[3], v)}</td></tr>`).join("")}</tbody></table><p class="sub" style="color:var(--muted)">Unit: ${esc(v.unit)}. These points are simplified for teaching and will be replaced by digitised data after checking.</p>`;
+    if (v && v.note) html += `<div class="note-box">${esc(v.note)}</div>`;
+    if (v && v.points.length) html += `<h4>${v.status === "digitised" ? `Values of the selected curve (digitised from the published figure, ${v.points.length} points)` : v.status === "data summary" ? "Values of the selected curve (read from the papers)" : "Control points of the selected curve (schematic)"}</h4><table class="pts"><thead><tr><th>Age (Ma)</th><th>Value</th><th>Low</th><th>High</th></tr></thead><tbody>${v.points.map(q => `<tr><td>${q[0]}</td><td>${fmtVal(q[1], v)}</td><td>${fmtVal(q[2], v)}</td><td>${fmtVal(q[3], v)}</td></tr>`).join("")}</tbody></table><p class="sub" style="color:var(--muted)">Unit: ${esc(v.unit)}. ${v.status === "digitised" ? "Read from the published figure with an image-analysis script. Low and high are a nominal ±10% band, not the published confidence interval. Ages are on GTS2020 as in the paper and restaged to ICS 2026." : v.status === "data summary" ? "Stage-level or interval-level values taken from the text and figures. Low and high are approximate ranges." : "These points are simplified for teaching and will be replaced by digitised data after checking."}</p>`;
     if (p.kind === "framework") html += `<h4>Events</h4><table class="pts"><thead><tr><th>Event</th><th>Ma (ICS)</th><th>Sources</th></tr></thead><tbody>${T.events.map(e => `<tr><td>${esc(e.name)}</td><td>${e.from}–${e.to}</td><td>${e.refs.map(shortRef).map(esc).join("; ")}</td></tr>`).join("")}</tbody></table><h4>Age models</h4><ul>${T.ageModels.map(m => `<li>${esc(m.name)}</li>`).join("")}</ul>`;
     if (prov.length) html += `<h4>Shared or derived data</h4><ul>${prov.map(x => `<li>${esc(E.panelsById[x.a].short)} and ${esc(E.panelsById[x.b].short)}: ${esc(x.why)}</li>`).join("")}</ul>`;
     if (usedBy.length) html += `<h4>Used by hypotheses</h4><p>${usedBy.map(h => `${h.id} ${esc(h.name)}`).join("; ")}</p>`;
@@ -698,12 +725,20 @@
       <h2>Time resolution</h2>
       <p>Rasmussen et al. (2019) and Kröger et al. (2019) showed that the tempo of diversification is lost when diversity is counted in long time bins, and refined the binning to about 2.5 Myr on average. CONOP composites from South China (Fan et al. 2020; Deng et al. 2021, 2023; Zhang et al. 2021) reach resolutions of about 20 to 30 kyr. The resolution setting tests how much the answer depends on bin width.</p>
       <ul>
-        <li>Bins of equal length (1, 2, 2.5, 5, 10 or 20 Myr) are counted from 640 Ma. Each curve is replaced by its mean in each bin, and the plots show these means as steps over the faint original curve.</li>
+        <li><b>No resolution higher than the data.</b> Each curve has a data resolution: the spacing of its digitised points (0.25 or 0.5 Myr for the CONOP diversity curves) or of the control points of a simplified curve (5 to 20 Myr). The default setting, Native, bins every curve at its own data resolution. If you choose a finer bin width, curves with coarser data are held at their data limit and marked "held at data limit".</li>
+        <li>Bins of equal length (0.25, 0.5, 1, 2, 2.5, 5, 10 or 20 Myr) are counted from 640 Ma. Each curve is drawn as its bin means (steps). A thin dashed line joins the data or control points and is not data. Dots mark the values that were entered.</li>
+        <li>The label under each panel name says whether its bins rest on real data (green), follow a simplified curve (grey, dashed), or are held at the data limit (amber). A test that compares two curves uses the coarser of the two resolutions.</li>
         <li>Each test needs a minimum number of bins: a trend uses at least ±1.5 bins, a lead at least 2 bins on each side, volatility at least ±2 bins, and co-variation at least ±2.5 bins. With 20 Myr bins, a co-variation test therefore looks across about 100 Myr.</li>
         <li>Each panel has a tempo label: slow (first order, tens of Myr), intermediate (about 1 to 10 Myr), fast (1 Myr or less) or biological response. When bins are narrower than the spacing of a curve's control points, the panel says so, because the bins then show interpolation rather than data.</li>
         <li>The time-resolution ledger below the heatmap shows the support for each hypothesis at the bar for every bin width, and the co-variation of each parameter with a chosen response across the view for every bin width.</li>
         <li>Trait rows and event tests are not binned.</li>
       </ul>
+
+      <h2>Data added in version 0.3</h2>
+      <p>The diversity panel now offers four curves digitised from published figures: species richness from China (Fan et al. 2020, 0.5 Myr, 535 to 440 Ma, the default), South China (Deng et al. 2021, 0.25 Myr), the Furongian and Early Ordovician (Deng et al. 2023, 0.25 Myr) and the Ordovician of China (Zhang et al. 2021). The sampling panel has the sampling curve of Deng et al. (2021). Two new panels summarise the skeletal share of carbonate production (Pruss et al. 2010; Pruss and Clemente 2011; Pruss and Knoll 2017) and modes of life (Bambach et al. 2007, after Bambach 1983 and Droser and Bambach 2001). Digitised values are read from figures, not from the original data tables, and carry a nominal ±10% band. They are mostly regional.</p>
+
+      <h2>The four stages of the lab</h2>
+      <p>Stage 1 sorts Christian Rasmussen's determinant cards into abiotic and biotic camps. Stage 2 tests simple cause and effect ideas against the hypotheses and the data of this explorer, at the native resolution of the data, for the Cambrian explosion (545 to 505 Ma) and the GOBE (490 to 450 Ma). Stage 3 is this explorer. Stage 4 summarises the session. All steps, insights, opinions, tick answers and feedback are logged while the page is open and handed in as a locked file (RSA-OAEP and AES-GCM encryption). Teachers log in on the teacher page (Teacher login in the footer) to open the files, read an overview and download the summaries as PDF.</p>
 
       <h2>Confidence tiers</h2>
       <table><thead><tr><th>Tier</th><th>Meaning</th><th>Weight</th></tr></thead><tbody>
@@ -740,10 +775,11 @@
         ${ch.map(([st, a, b]) => `<tr><td>${esc(st ? st.name : "")}</td><td>${a}</td><td>${b}</td><td>${(b - a >= 0 ? "+" : "") + (b - a).toFixed(2)}</td></tr>`).join("")}</tbody></table>
       <p>Positive shifts mean older. The largest change in the interval is the base of the Wuliuan, 2.5 Myr younger, which stretches Stage 4 and moves Burgess Shale-age data to about 506 Ma. The C/D age model is a schematic remap between fixed anchors at 551 and 529 Ma that moves the Ediacaran–Cambrian boundary from 538.8 to about 535.5 Ma, after the range of models in Bowyer et al. (2022). The default test window grows with age uncertainty: ±0.5 Myr in the Ordovician, ±1 Myr in the later Cambrian, ±1.5 Myr for 545 to 525 Ma, ±2 Myr for 580 to 545 Ma and ±3 Myr before 580 Ma.</p>
 
-      <h2>Limits of version 0.2</h2>
+      <h2>Limits of version 0.4</h2>
       <ul>
-        <li>All curves are simplified, schematic versions of published records. They show the shape and timing described in the sources but are not digitised data. They will be checked and replaced step by step.</li>
-        <li>All series are global summaries; regional curves, the high-resolution South China composites and molecular clocks are not yet included.</li>
+        <li>Apart from the diversity, sampling, carbonate production and modes-of-life panels, the curves are simplified, schematic versions of published records. They show the shape and timing described in the sources but are not digitised data. They will be checked and replaced step by step.</li>
+        <li>The digitised curves were read from published figures, not raw data, and come mainly from China. The other series are global summaries; molecular clocks are not yet included.</li>
+        <li>The Stage 2 replies are simple summaries of the same tests. They are meant to start discussion, not to settle it.</li>
         <li>The scores rank hypotheses by consistency with the selected data. They are not probabilities, and they depend on the choice of roles, curves, bin widths and thresholds, which are shown openly so they can be discussed.</li>
       </ul></div>`;
   }
@@ -757,7 +793,7 @@
   function exportCSV() {
     const res = E.evaluate(state.t, state);
     const rows = [["age_Ma", "age_model", "resolution_Myr", "hypothesis", "name", "net_support", "coverage", "consistency", "prediction", "kind", "status", "score", "detail_or_reason"]];
-    res.forEach(r => r.results.forEach(x => rows.push([state.t, state.ageModel, state.res || "continuous", r.id, r.h.name, r.net.toFixed(3), r.coverage.toFixed(2), r.consistency == null ? "" : r.consistency.toFixed(2), x.text, x.kind, x.status, x.s == null ? "" : x.s.toFixed(3), x.s == null ? x.reason : x.detail])));
+    res.forEach(r => r.results.forEach(x => rows.push([state.t, state.ageModel, state.res || "native", r.id, r.h.name, r.net.toFixed(3), r.coverage.toFixed(2), r.consistency == null ? "" : r.consistency.toFixed(2), x.text, x.kind, x.status, x.s == null ? "" : x.s.toFixed(3), x.s == null ? x.reason : x.detail])));
     download(`evoearth_${state.t}Ma.csv`, rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
   }
   function exportJSON() {
@@ -768,6 +804,7 @@
 
   // ---------- views, mode ----------
   function setView(v) {
+    if (state.view !== v) LOG("tab", { view: v });
     state.view = v;
     $$(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.view === v));
     ["timeline", "hypotheses", "references", "method"].forEach(id => { $("#view-" + id).hidden = id !== v; });
@@ -782,7 +819,7 @@
   $$(".tab").forEach(t => t.addEventListener("click", () => setView(t.dataset.view)));
   $$("[data-mode]").forEach(b => b.addEventListener("click", () => {
     const prev = state.mode;
-    state.mode = b.dataset.mode;
+    state.mode = b.dataset.mode; LOG("mode", { mode: state.mode });
     $$("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x.dataset.mode === state.mode));
     state.flash = null;
     if (state.mode === "guided" && prev === "full") {
@@ -821,6 +858,22 @@
     clearTimeout(rT);
     rT = setTimeout(() => { setHdrH(); const w = $("#stack").clientWidth; if (state.view === "timeline" && Math.abs(w - lastW) > 4) { lastW = w; renderStack(); renderHeat(); } }, 150);
   });
+
+  // Open the explorer with roles and a view set from a Stage 2 idea.
+  function openForRelation(causes, effects, iv, label) {
+    state.mode = "full";
+    $$("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x.dataset.mode === state.mode));
+    state.roles = Object.assign({}, window.CL_PRESETS[0].roles);
+    causes.forEach(id => { state.roles[id] = "given"; });
+    effects.forEach(id => { state.roles[id] = "outcome"; });
+    state.preset = "custom";
+    if (effects.includes("richness")) state.variants.richness = iv && iv.id === "gobe" ? "deng2021" : "fan2020";
+    if (iv) { state.zoom = [Math.min(640, iv.range[0] + 10), Math.max(440, iv.range[1] - 10)]; state.zoomId = "custom"; state.t = Math.round((iv.range[0] + iv.range[1]) / 2); }
+    state.flash = `Opened from Stage 2 (${label}): ${causes.map(id => E.panelsById[id].short).join(", ")} set as Given, ${effects.map(id => E.panelsById[id].short).join(", ")} as Outcome. Full mode is on, so you can change roles, curves and resolution.`;
+    LOG("from2", { causes, effects, interval: iv && iv.id });
+    invalidate(); renderAll(); setView("timeline");
+  }
+  window.CL_APP = { state, setView, setZoom, applyPreset, setT, setRes, renderAll, invalidate, openForRelation, refresh() { setHdrH(); if (state.view === "timeline") { renderStack(); renderHeat(); renderSide(); renderTempo(); } else setView(state.view); } };
 
   renderAll();
   lastW = $("#stack").clientWidth;
